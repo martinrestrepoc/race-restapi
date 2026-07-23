@@ -1,0 +1,273 @@
+# Great EIA Camel vs. Dwarf Racing System
+
+A NestJS REST API for managing competitors, teams, races, registrations, official
+results, standings, and audit records for a fictional racing league.
+
+The product will combine this backend with a separate graphical frontend, PostgreSQL,
+and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
+API over HTTP, and never accesses PostgreSQL directly. This repository is currently
+an initial NestJS starter: the domain, persistence, identity integration, frontend,
+and container infrastructure remain to be implemented.
+
+## Objective
+
+Deliver a secure and usable system that persists racing data, enforces the documented
+business rules, supports role-based workflows, exposes a consistent REST API, and
+runs reproducibly through Docker Compose.
+
+## Team Members
+
+```text
+Decision pending
+```
+
+## Main Capabilities
+
+- Keycloak authentication and backend role authorization
+- Competitor and team management
+- Race scheduling and lifecycle management
+- Participant registration and eligibility checks
+- Official result recording and standings calculation
+- Administrator-only audit-log access
+- A separate role-aware graphical interface
+
+See [Project requirements](docs/project-requirements.md) and
+[Business rules](docs/business-rules.md) for the authoritative scope.
+
+## Technology
+
+The definitive target stack is Node.js LTS, TypeScript, NestJS, TypeORM,
+PostgreSQL, Keycloak, OpenID Connect, OAuth 2.0, Docker, Docker Compose, Jest,
+`@nestjs/testing`, Supertest, `class-validator`, and `class-transformer`.
+
+Current repository state:
+
+- Package manager: npm (`package-lock.json` is present).
+- NestJS 11 and TypeScript are installed.
+- Jest, `@nestjs/testing`, and Supertest are installed.
+- ESLint and Prettier are configured.
+- TypeORM, PostgreSQL drivers, validation packages, configuration packages, and
+  Keycloak integration are not installed.
+- No Dockerfile, Compose file, `.env.example`, migrations, seeds, or frontend is
+  present.
+- No Node version file or package `engines` constraint is present. The inspected
+  development environment uses Node `v24.13.1`; the supported Node.js LTS release
+  is `Decision pending`.
+
+## Architecture
+
+NestJS is the resource server and owner of business rules, domain authorization,
+REST behavior, application data, and audit records. Keycloak owns identities,
+credentials, sessions, token issuance, and authorization roles. TypeORM will map
+domain persistence to PostgreSQL and migrations will evolve the schema. The
+frontend will be a separate client of both Keycloak and this API.
+
+Detailed boundaries and the proposed module layout are in
+[Architecture](docs/architecture.md). The conceptual persistence model is in
+[Database model](docs/database-model.md).
+
+## Prerequisites
+
+- A Node.js LTS version: exact supported version is `Decision pending`.
+- npm (the repository currently uses `package-lock.json`).
+- Docker with Docker Compose: required for the target environment, not yet
+  configured.
+- PostgreSQL and Keycloak: required by the target architecture, not yet configured.
+- The separate frontend repository or location: `Decision pending`.
+
+## Installation
+
+Install the currently declared dependencies:
+
+```bash
+npm ci
+```
+
+This installs the starter only; it does not add the missing target-stack packages.
+
+## Environment Configuration
+
+No `.env.example` or application configuration layer exists yet. Before introducing
+database or identity integration, create a non-secret `.env.example` and typed
+configuration for, at minimum, these conceptual settings:
+
+```text
+PORT
+DATABASE_HOST
+DATABASE_PORT
+DATABASE_NAME
+DATABASE_USERNAME
+DATABASE_PASSWORD
+KEYCLOAK_ISSUER
+KEYCLOAK_AUDIENCE
+KEYCLOAK_JWKS_URI
+```
+
+Final variable names, realm/client identifiers, ports, and whether
+`KEYCLOAK_JWKS_URI` is derived from the issuer are `Decision pending`. Never commit
+real credentials, admin passwords, client secrets, access tokens, or refresh tokens.
+
+## Development
+
+The existing starter can be run in watch mode:
+
+```bash
+npm run start:dev
+```
+
+It currently listens on `PORT` or falls back to port `3000` and exposes only the
+default starter route. The planned global prefix `/api/v1`, validation, database,
+and security behavior are not implemented.
+
+Other existing run scripts:
+
+```bash
+npm run start
+npm run start:debug
+npm run build
+npm run start:prod
+```
+
+## Docker
+
+The target local topology contains:
+
+- A separate frontend container
+- A NestJS API container
+- A PostgreSQL container for application data with a named volume
+- A Keycloak container with persistent database storage
+- An isolated network, environment configuration, ports, startup dependencies,
+  and practical health checks
+
+Whether Keycloak uses the same PostgreSQL server with a separate database and
+credentials or a dedicated PostgreSQL container is `Decision pending`.
+
+The intended command is:
+
+```bash
+docker compose up -d --build
+```
+
+This is a target, not a working command: no Docker or Compose configuration exists
+in this repository yet.
+
+## Migrations and Seeds
+
+TypeORM migrations are the required schema-evolution mechanism, but TypeORM and
+migration scripts are not currently configured.
+
+```text
+Decision pending
+```
+
+Seeds do not currently exist. Academic demonstration data must eventually include
+the minimum dataset in [Project requirements](docs/project-requirements.md), without
+embedding real credentials. Keycloak demo accounts must be provisioned through a
+reproducible realm setup rather than application-database seeds.
+
+## Tests and Quality
+
+These scripts currently exist:
+
+```bash
+npm test
+npm run test:watch
+npm run test:cov
+npm run test:e2e
+npm run lint
+npm run format
+```
+
+The repository currently has only the NestJS starter unit and E2E tests. They do
+not cover the racing domain, PostgreSQL, or Keycloak. See [Testing](docs/testing.md)
+for the required test matrix and isolation strategy.
+
+## Repository Structure
+
+```text
+.
+├── AGENTS.md
+├── README.md
+├── docs/                  # Authoritative project documentation
+├── src/                   # Current NestJS starter; target domain modules go here
+├── test/                  # E2E tests
+├── package.json
+├── package-lock.json
+├── eslint.config.mjs
+└── tsconfig*.json
+```
+
+The expected modular `src/` layout is documented in
+[Architecture](docs/architecture.md).
+
+## Roles
+
+- `ADMINISTRATOR`: manage users, competitors, teams, races, registrations,
+  results, and audit records.
+- `RACE_ORGANIZER`: manage races, registrations, and results; view competitors
+  and teams.
+- `VIEWER`: read public information, schedules, results, and standings only.
+
+Keycloak is the role source of truth. Whether these are realm roles or client roles
+is `Decision pending`.
+
+## Keycloak Integration
+
+The frontend will use Authorization Code Flow with PKCE. It will send the resulting
+Keycloak access token as `Authorization: Bearer <keycloak-access-token>`. NestJS
+will validate the token signature, issuer, expiration, and configured audience,
+then enforce role and domain permissions. NestJS will not implement local login,
+password storage, or token issuance.
+
+The concrete NestJS integration library and reproducible realm import strategy are
+`Decision pending`. See [Security](docs/security.md).
+
+## Demo Users and Component URLs
+
+Demo users, fictional credentials, and the Keycloak provisioning mechanism:
+
+```text
+Decision pending
+```
+
+No demo accounts currently exist. Do not interpret example names in the academic
+scenario as credentials.
+
+Current and planned URLs:
+
+| Component      | URL                                             | Status                       |
+| -------------- | ----------------------------------------------- | ---------------------------- |
+| NestJS starter | `http://localhost:3000` by default              | Current, unprotected starter |
+| Planned API    | `/api/v1` under the backend origin              | Target                       |
+| Frontend       | `Decision pending`                              | Not present                  |
+| Keycloak       | `Decision pending`                              | Not configured               |
+| PostgreSQL     | Internal container endpoint: `Decision pending` | Not configured               |
+
+## Documentation
+
+- [Project requirements](docs/project-requirements.md)
+- [Business rules](docs/business-rules.md)
+- [Architecture](docs/architecture.md)
+- [Database model](docs/database-model.md)
+- [API contract](docs/api-contract.md)
+- [Security](docs/security.md)
+- [Testing](docs/testing.md)
+- [Evaluation checklist](docs/evaluation-checklist.md)
+
+## Known Limitations
+
+- Only the default NestJS starter behavior exists.
+- Domain modules and business rules are not implemented.
+- TypeORM and PostgreSQL are not configured.
+- Keycloak authentication and authorization are not configured.
+- Docker Compose and persistent storage are not configured.
+- The mandatory graphical frontend is not present.
+- No domain tests, migrations, seeds, or reproducible demo accounts exist.
+
+## Future Improvements
+
+After all mandatory requirements are complete, optional improvements may include
+CI, cloud deployment, WebSocket race updates, email notifications, Redis caching,
+rate limiting, Testcontainers, CSV/PDF export, profile images, observability, soft
+delete, optimistic locking, and idempotency keys. Bonus work must not displace
+mandatory security, UI, persistence, or business-rule work.
