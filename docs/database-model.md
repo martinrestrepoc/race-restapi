@@ -1,5 +1,11 @@
 # Database Model
 
+## Accepted Decisions
+
+The accepted [Architecture Decision Records](adr/README.md) and
+[implementation roadmap](roadmap.md) supersede earlier pending statements on the
+same topic. Their acceptance does not imply implementation.
+
 ## Ownership Boundary
 
 PostgreSQL stores application-domain data. Keycloak stores identity-system data.
@@ -41,7 +47,7 @@ UserProfile
   tokens.
 - Keycloak remains the owner of identity data even when selected claims are cached.
 
-The need for `emailSnapshot`, profile status values, automatic profile creation, and
+The need for `emailSnapshot`, profile status values (`ACTIVE`/`DISABLED`) and lazy profile creation, and
 claim synchronization is `Decision pending`.
 
 ## Roles
@@ -55,7 +61,7 @@ If local role metadata must be retained for academic traceability, the choices a
 2. Local non-authoritative metadata keyed by Keycloak role name.
 3. Synchronized role records between Keycloak and PostgreSQL.
 
-Selected approach: `Decision pending`.
+Selected approach: Keycloak client roles only; no local role duplication.
 
 No local role duplication may be implemented until source of truth,
 synchronization, inconsistency handling, and the stable role identifier are
@@ -93,15 +99,11 @@ erDiagram
         string nickname UK
         enum type
         date dateOfBirth
-        integer approximateAge
         decimal weight
         decimal height
         string origin
         enum status
         datetime registeredAt
-        integer victories
-        integer defeats
-        integer completedRaces
     }
     TEAM {
         uuid id PK
@@ -110,8 +112,6 @@ erDiagram
         datetime createdAt
         string status
         string responsiblePerson
-        integer victories
-        integer defeats
     }
     TEAM_MEMBER {
         uuid id PK
@@ -153,8 +153,9 @@ erDiagram
         uuid registrationId FK
         integer startingPosition
         integer finalPosition
-        decimal completionTime
-        decimal penaltyTime
+        bigint rawTimeMs
+        bigint penaltyTimeMs
+        bigint finalTimeMs
         enum status
         string notes
         uuid recordedByUserProfileId FK
@@ -174,8 +175,8 @@ erDiagram
     }
 ```
 
-The UUID representation, precision/units for measurements and times, and whether
-statistics are stored or derived are `Decision pending`. The diagram's
+Identifiers use UUID v4; weight is kilograms `numeric(6,2)`, height is centimeters
+`numeric(5,2)`, times are integer milliseconds, and statistics are derived. The diagram's
 `USER_PROFILE` links only attribute application actions; they do not make
 PostgreSQL the owner of credentials.
 
@@ -203,14 +204,14 @@ PostgreSQL the owner of credentials.
 ### Competitor
 
 - **Purpose:** represent an eligible individual racing participant.
-- **Main fields/types:** identifier; name; nickname; `CompetitorType`; birth date or
-  approximate age; positive decimal weight/height; origin; `CompetitorStatus`;
-  registration timestamp; victories, defeats, completed races.
+- **Main fields/types:** UUID v4 identifier; name; nickname; `CompetitorType`;
+  date of birth; weight in kilograms `numeric(6,2)`; height in centimeters
+  `numeric(5,2)`; origin; `CompetitorStatus`; registration timestamp.
 - **Relationships:** team memberships and individual race registrations.
 - **Constraints:** unique nickname; non-empty name; positive weight/height; valid
   type/status.
-- **Nullability:** either birth date or approximate age is required by the academic
-  model, but exact exclusivity is `Decision pending`; team membership is optional.
+- **Nullability:** date of birth is required; age is calculated. Team membership is
+  optional.
 - **Indexes:** unique nickname; status/type; origin only if filtering requires it.
 - **Deletion:** physical deletion only when no official results/history prevents it;
   otherwise retire/deactivate.
@@ -222,7 +223,7 @@ PostgreSQL the owner of credentials.
 
 - **Purpose:** group competitors for team or mixed races.
 - **Main fields/types:** identifier; unique name; description; creation date; status;
-  coach/responsible person; victories and defeats.
+  coach/responsible person. Statistics are derived from official results.
 - **Relationships:** has `TeamMember` records and team race registrations.
 - **Constraints:** unique name; configurable membership maximum; at least one
   eligible member before race entry.
@@ -242,8 +243,7 @@ PostgreSQL the owner of credentials.
 - **Constraints:** no duplicate current membership; one active team per competitor.
 - **Nullability:** `leftAt` is null while membership is active.
 - **Indexes:** `(teamId, competitorId)` and active membership by `competitorId`.
-- **Deletion:** closing membership via `leftAt` is recommended for history;
-  physical-removal policy is `Decision pending`.
+- **Deletion:** end membership by setting `leftAt`; preserve the membership record.
 - **Audit fields:** joined/left timestamps.
 - **Security:** no identity credentials.
 - **Identity owner:** application domain.
@@ -260,8 +260,7 @@ PostgreSQL the owner of credentials.
 - **Nullability:** description may be nullable; required location policy follows
   the specification's required data.
 - **Indexes:** scheduled time, status, registration deadline, organizer.
-- **Deletion:** avoid deleting history; cancellation versus deletion rules are
-  `Decision pending`.
+- **Deletion:** cancel rather than delete a race that has registrations or results.
 - **Audit fields:** `createdAt`, `updatedAt`.
 - **Security:** organizer references a local profile keyed to Keycloak `sub`.
 - **Identity owner:** application domain.
@@ -279,8 +278,7 @@ PostgreSQL the owner of credentials.
   null before assignment; rejection reason is required when rejected.
 - **Indexes:** race/status; unique participant per race; unique race/starting
   position where non-null.
-- **Deletion:** cancellation is preferred where history matters; policy is
-  `Decision pending`.
+- **Deletion:** cancel approved registrations rather than deleting them.
 - **Audit fields:** registration timestamp and acting user.
 - **Security:** actor is resolved from validated `sub`.
 - **Identity owner:** application domain.
@@ -289,15 +287,15 @@ PostgreSQL the owner of credentials.
 
 - **Purpose:** record the official outcome for an approved registration.
 - **Main fields/types:** identifier, race/registration, start/final positions,
-  positive completion time, non-negative penalty time, `ResultStatus`, notes,
-  recorder, timestamps.
+  positive raw time, non-negative penalty time, final time in integer milliseconds,
+  `ResultStatus`, notes, recorder, timestamps.
 - **Relationships:** race, approved registration, recorder `UserProfile`.
 - **Constraints:** one result per race participant; unique normal-finisher position;
   one official winner; disqualified participant cannot win.
 - **Nullability:** final position/completion time for non-finish outcomes is
   `Decision pending`; notes may be null.
 - **Indexes:** race/status/final position; unique registration result.
-- **Deletion:** official result removal/correction policy is `Decision pending`.
+- **Deletion:** results are corrected rather than deleted; corrections are audited.
 - **Audit fields:** recorded/updated timestamps and recorder.
 - **Security:** preserve traceability; do not leak unrelated profile claims.
 - **Identity owner:** application domain.
@@ -313,8 +311,8 @@ PostgreSQL the owner of credentials.
   events is `Decision pending`.
 - **Nullability:** descriptions and value snapshots are optional.
 - **Indexes:** occurred time; actor; `(entityType, entityId)`; action.
-- **Deletion:** append-only retention is recommended; definitive retention and
-  immutability policy is `Decision pending`.
+- **Deletion:** append-only; no application update/delete endpoints. Retention
+  duration remains `Decision pending`.
 - **Audit fields:** `occurredAt` is intrinsic; updates should not normally occur.
 - **Security:** redact secrets, credentials, tokens, and sensitive claim values.
 - **Identity owner:** application audit data; Keycloak still owns authentication

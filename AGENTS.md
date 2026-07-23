@@ -119,8 +119,8 @@ Add `repositories/` only when it provides meaningful persistence behavior.
 - Do not issue application-owned JWT access tokens or refresh tokens.
 - Do not log tokens or return token-validation internals.
 
-The exact NestJS-to-Keycloak integration library is `Decision pending`. Preserve
-standards-based JWT, issuer, and JWKS validation regardless of the library chosen.
+Passport JWT with `jwks-rsa` is selected subject to dependency compatibility
+confirmation. Preserve JWT issuer, audience, signature, expiry, and JWKS validation.
 
 ## REST and Validation Conventions
 

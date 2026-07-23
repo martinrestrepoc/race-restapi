@@ -51,8 +51,7 @@ Current repository state:
 - No Dockerfile, Compose file, `.env.example`, migrations, seeds, or frontend is
   present.
 - No Node version file or package `engines` constraint is present. The inspected
-  development environment uses Node `v24.13.1`; the supported Node.js LTS release
-  is `Decision pending`.
+  development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
 
 ## Architecture
 
@@ -68,12 +67,12 @@ Detailed boundaries and the proposed module layout are in
 
 ## Prerequisites
 
-- A Node.js LTS version: exact supported version is `Decision pending`.
+- Node.js 24 after dependency compatibility confirmation.
 - npm (the repository currently uses `package-lock.json`).
 - Docker with Docker Compose: required for the target environment, not yet
   configured.
 - PostgreSQL and Keycloak: required by the target architecture, not yet configured.
-- The separate frontend repository or location: `Decision pending`.
+- React/TypeScript/Vite frontend under target `frontend/`.
 
 ## Installation
 
@@ -139,8 +138,8 @@ The target local topology contains:
 - An isolated network, environment configuration, ports, startup dependencies,
   and practical health checks
 
-Whether Keycloak uses the same PostgreSQL server with a separate database and
-credentials or a dedicated PostgreSQL container is `Decision pending`.
+Keycloak and the application use one PostgreSQL container with separate databases
+and credentials.
 
 The intended command is:
 
@@ -219,8 +218,8 @@ will validate the token signature, issuer, expiration, and configured audience,
 then enforce role and domain permissions. NestJS will not implement local login,
 password storage, or token issuance.
 
-The concrete NestJS integration library and reproducible realm import strategy are
-`Decision pending`. See [Security](docs/security.md).
+Passport JWT with `jwks-rsa` is selected subject to compatibility confirmation;
+demo users and client roles use a reproducible realm import. See [Security](docs/security.md).
 
 ## Demo Users and Component URLs
 
@@ -244,6 +243,9 @@ Current and planned URLs:
 | PostgreSQL     | Internal container endpoint: `Decision pending` | Not configured               |
 
 ## Documentation
+
+- [Architecture decisions](docs/adr/README.md)
+- [Implementation roadmap](docs/roadmap.md)
 
 - [Project requirements](docs/project-requirements.md)
 - [Business rules](docs/business-rules.md)

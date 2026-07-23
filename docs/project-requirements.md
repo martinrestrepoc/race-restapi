@@ -42,17 +42,15 @@ Business constraints are authoritative in [Business rules](business-rules.md).
 
 ### Mandatory
 
-- Administrators can manage application users within the scope allowed by the
-  adopted Keycloak administration design.
-- The application may maintain a local `UserProfile` keyed by the Keycloak `sub`
+- The initial version does not manage Keycloak users through the Admin API.
+- The application maintains a lazily provisioned local `UserProfile` keyed by the Keycloak `sub`
   claim for domain references and audit attribution.
 - Keycloak remains the owner of credentials, sessions, and roles.
 - The system provides a current-user profile/logout experience in the frontend.
 - Minimum initial identity data includes one administrator, one organizer, and one
   viewer, provisioned reproducibly through Keycloak rather than domain seeds.
 
-The exact administrative user-management API and realm provisioning mechanism are
-`Decision pending`.
+Demo identities and client-role assignments use a reproducible realm import.
 
 ## Competitor Management
 
@@ -60,11 +58,10 @@ The exact administrative user-management API and realm provisioning mechanism ar
 
 - Create, retrieve, update, filter, sort, paginate, and delete or deactivate
   competitors according to domain rules.
-- Store identifier, name, unique nickname, competitor type, date of birth or
-  approximate age, positive weight, positive height, origin, status, registration
-  date, optional team association, victories, defeats, and completed-race count.
+- Store identifier, name, unique nickname, competitor type, date of birth, positive weight, positive height, origin, status, registration
+  date, optional team association; age and statistics are derived.
 - Support `DWARF`, `CAMEL`, `MEDIUM`, and `OTHER` competitor types.
-- Support `ACTIVE`, `INJURED`, `SUSPENDED`, and `RETIRED` statuses.
+- Support `ACTIVE`, `SUSPENDED`, and `RETIRED` statuses.
 - Enforce every competitor rule in [Business rules](business-rules.md).
 
 ## Team Management
@@ -74,11 +71,11 @@ The exact administrative user-management API and realm provisioning mechanism ar
 - Create, retrieve, update, and delete or deactivate teams.
 - Add and remove team members.
 - Store identifier, unique name, description, creation date, status, coach or
-  responsible person, members, victories, and defeats.
+  responsible person, historical memberships; statistics are derived.
 - Make the maximum number of team members configurable.
 - Enforce membership, eligibility, history, and duplicate rules.
 
-Team status values and their complete lifecycle are `Decision pending`.
+Team statuses are `ACTIVE` and `INACTIVE`.
 
 ## Race Management
 
@@ -89,7 +86,7 @@ Team status values and their complete lifecycle are `Decision pending`.
   positive distance in meters, capacity, type, status, organizer, registration
   deadline, creation timestamp, and last-modification timestamp.
 - Support `INDIVIDUAL`, `TEAM`, and `MIXED` race types.
-- Support `DRAFT`, `OPEN_FOR_REGISTRATION`, `CLOSED_FOR_REGISTRATION`,
+- Support `DRAFT`, `OPEN_FOR_REGISTRATION`, `CLOSED`,
   `IN_PROGRESS`, `COMPLETED`, and `CANCELLED` statuses.
 - Enforce scheduling, deadline, minimum-participant, capacity, editing, and
   completion rules.
@@ -112,28 +109,15 @@ Team status values and their complete lifecycle are `Decision pending`.
 ### Mandatory
 
 - Record, retrieve, and update results for registered participants.
-- Store race, participant, starting position, final position, completion time,
-  penalty time, status, notes, recorder, and recording timestamp.
+- Store race, participant, starting position, final position, raw time, penalty time, final time, status, notes, recorder, and recording timestamp.
 - Support `FINISHED`, `DISQUALIFIED`, `DID_NOT_FINISH`, and `DID_NOT_START`
   result statuses.
 - Enforce race status, approved-registration, time, unique-position, and single
   winner rules.
-- Update competitor/team statistics consistently when results change.
+- Derive competitor/team statistics from official results.
 - Provide overall, competitor, and team standings.
-- Apply this scoring table:
-
-| Outcome        | Points |
-| -------------- | -----: |
-| First          |     10 |
-| Second         |      7 |
-| Third          |      5 |
-| Fourth         |      3 |
-| Fifth          |      1 |
-| Did not finish |      0 |
-| Disqualified   |      0 |
-
-The treatment of `DID_NOT_START` and penalty time in ranking/points is
-`Decision pending`.
+- Award zero points for `DID_NOT_START`, `DID_NOT_FINISH`, and `DISQUALIFIED`.
+- The remaining points table is `Decision pending` until verified against the PDF.
 
 ## Graphical User Interface
 
@@ -160,7 +144,8 @@ The treatment of `DID_NOT_START` and penalty time in ranking/points is
 - Responsive behavior for a web frontend.
 - Frontend tests for success, validation-error, and authorization-failure behavior.
 
-The frontend technology and repository location are `Decision pending`.
+Use React, TypeScript, Vite, `keycloak-js`, and React Router in separate
+`backend/` and `frontend/` applications in this repository.
 
 ## Audit Log
 
@@ -174,8 +159,7 @@ The frontend technology and repository location are `Decision pending`.
 - Only administrators can view the complete audit log.
 - Audit data must not contain credentials, tokens, or other secrets.
 
-How Keycloak login events are imported or correlated with the application audit log
-is `Decision pending`.
+Keycloak login events are not imported in the initial version.
 
 ## Cross-Cutting Non-Functional Requirements
 

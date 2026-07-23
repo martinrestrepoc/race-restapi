@@ -1,5 +1,11 @@
 # REST API Contract
 
+## Accepted Decisions
+
+The accepted [Architecture Decision Records](adr/README.md) and
+[implementation roadmap](roadmap.md) supersede earlier pending statements on the
+same topic. Their acceptance does not imply implementation.
+
 ## Status and Scope
 
 This is the proposed contract; no domain endpoints are currently implemented.
@@ -12,7 +18,7 @@ Identity and token endpoints belong to Keycloak, not this API.
 - Versioned base path: `/api/v1`
 - Resources use plural, lower-case path segments.
 - JSON properties use `camelCase`.
-- Identifiers are opaque to clients; their concrete format is `Decision pending`.
+- Identifiers are opaque to clients; their concrete format is UUID v4.
 - Breaking contract changes require a new API version.
 
 ## Authentication and Authorization
@@ -95,9 +101,8 @@ The tables define the proposed surface, not implemented behavior.
 | `GET /api/v1/users/:id`          | Read application-visible user profile   | Admin         |
 | `PATCH /api/v1/users/:id/status` | Change local profile status, if adopted | Admin         |
 
-Keycloak account creation/role assignment facade endpoints and local profile status
-behavior are `Decision pending`. Do not expose Keycloak credentials or unrestricted
-administration data.
+The initial version has no Keycloak Admin API facade. Local profile statuses are
+`ACTIVE` and `DISABLED`; an administrator may change local status.
 
 ### Competitors
 
@@ -136,8 +141,8 @@ Exact delete-versus-retire semantics must be explicit in implementation:
 | `PATCH /api/v1/races/:id/status` | Valid status transition          | Race management |
 | `DELETE /api/v1/races/:id`       | Delete or cancel where permitted | Race management |
 
-The body for status transitions should contain only transition input, such as the
-target `status` and optional reason. Direct-transition rules are `Decision pending`.
+The body for status transitions contains only the target `status` and optional
+reason. Allowed transitions are defined in ADR 0001.
 
 ### Registrations
 
@@ -165,7 +170,8 @@ permissions do not explicitly grant that access.
 | `GET /api/v1/standings/competitors`  | Competitor standings       | Read            |
 | `GET /api/v1/standings/teams`        | Team standings             | Read            |
 
-Whether result updates are allowed after race completion is `Decision pending`.
+Administrators and race organizers may correct results after completion with audit
+and standings recalculation.
 
 ### Audit
 
@@ -220,7 +226,7 @@ Whether empty results use `totalPages: 0` or `1` is `Decision pending`.
 - Time zone for user-entered race schedules and display conversion is
   `Decision pending`.
 - Distance is expressed in meters.
-- Weight/height units and completion/penalty-time units are `Decision pending` and
+- Weight is kilograms, height is centimeters, and raw/penalty/final time is integer milliseconds and
   must be encoded in field names or documented unambiguously before implementation.
 
 ## Success Representations

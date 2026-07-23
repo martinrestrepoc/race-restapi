@@ -1,5 +1,11 @@
 # Testing Strategy
 
+## Accepted Decisions
+
+The accepted [Architecture Decision Records](adr/README.md) and
+[implementation roadmap](roadmap.md) supersede earlier pending statements on the
+same topic. Their acceptance does not imply implementation.
+
 ## Current State
 
 Jest, `@nestjs/testing`, and Supertest are installed. The current repository has one
@@ -92,7 +98,7 @@ Use a controllable clock for deadline/past-date tests so tests do not become fla
 - Prevent physical deletion of a competitor with official results.
 - Reject duplicate team membership and membership in multiple active teams.
 - Enforce configurable team capacity.
-- Reject registration of empty or suspended teams.
+- Reject registration of empty or inactive teams.
 - Enforce race capacity atomically.
 - Require two valid participants before starting a race.
 - Reject completion without official results.
@@ -101,7 +107,8 @@ Use a controllable clock for deadline/past-date tests so tests do not become fla
 - Reject a participant competing individually and through a team in the same race.
 - Reject duplicate starting and normal finishing positions.
 - Reject non-positive completion time and disqualified winners.
-- Verify the complete points table and consistent statistics after result updates.
+- Verify the PDF-approved points table once available and consistent statistics
+  after result updates.
 - Verify only administrators can read the complete audit log.
 - Verify sensitive fields never appear in response DTOs or audit snapshots.
 
@@ -138,11 +145,8 @@ Viable strategies:
 4. Override the authentication guard only in tests that do not verify authentication
    or authorization.
 
-Selected strategy:
-
-```text
-Decision pending
-```
+Selected strategy: ordinary E2E tests may override authentication only when
+security is not under test; dedicated security E2E uses disposable Keycloak.
 
 - Unit tests may mock a context that is already authenticated and validated.
 - E2E security tests must exercise realistic signature, issuer, expiry, audience,

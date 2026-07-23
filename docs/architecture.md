@@ -1,5 +1,11 @@
 # Architecture
 
+## Accepted Decisions
+
+The accepted [Architecture Decision Records](adr/README.md) and
+[implementation roadmap](roadmap.md) supersede earlier pending statements on the
+same topic. Their acceptance does not imply implementation.
+
 ## Status
 
 This document defines the target architecture and distinguishes it from the current
@@ -34,18 +40,17 @@ flowchart LR
 
 ## Definitive Stack
 
-- Node.js LTS: exact supported LTS line is `Decision pending`.
+- Node.js 24, subject to dependency compatibility confirmation.
 - TypeScript and NestJS
 - PostgreSQL and TypeORM
 - Keycloak, OpenID Connect, OAuth 2.0, and Keycloak-issued JWT access tokens
 - `class-validator`, `class-transformer`, and a global `ValidationPipe`
 - Docker and Docker Compose
 - Jest, `@nestjs/testing`, and Supertest
-- A separately deployed graphical frontend: framework and repository are
-  `Decision pending`.
+- A separately deployed graphical frontend: React/TypeScript/Vite under `frontend/`.
 
 TypeORM and Keycloak are definitive choices. The concrete standards-compatible
-NestJS library used to validate Keycloak tokens is `Decision pending`.
+NestJS validation uses Passport JWT with `jwks-rsa`, subject to compatibility confirmation.
 
 ## Target Backend Layout
 
@@ -256,7 +261,7 @@ Keycloak storage has two valid target patterns:
    separate credentials.
 2. Keycloak uses a dedicated PostgreSQL container.
 
-Selected pattern: `Decision pending`.
+Selected pattern: one PostgreSQL container with separate application and Keycloak databases and credentials.
 
 Both application and Keycloak data require named persistent volumes. Keycloak's
 development-only embedded database is not the production architecture. A realm

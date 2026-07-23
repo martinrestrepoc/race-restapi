@@ -1,5 +1,11 @@
 # Security
 
+## Accepted Decisions
+
+The accepted [Architecture Decision Records](adr/README.md) and
+[implementation roadmap](roadmap.md) supersede earlier pending statements on the
+same topic. Their acceptance does not imply implementation.
+
 ## Security Model
 
 Keycloak is the central identity provider. NestJS is a protected OAuth 2.0 resource
@@ -67,11 +73,7 @@ audience configuration, and import automation are `Decision pending`.
 
 The required roles may be modeled as realm roles or API-specific client roles.
 
-Selected model:
-
-```text
-Decision pending
-```
+Selected model: Keycloak client roles.
 
 Do not mix realm and client roles without a documented need and deterministic
 mapping. Once selected, document token claim location, audience behavior, role
@@ -115,11 +117,7 @@ Possible implementation approaches:
 - A compatible NestJS/Passport strategy
 - A maintained Keycloak integration library
 
-Concrete integration library:
-
-```text
-Decision pending
-```
+Concrete integration: Passport JWT with `jwks-rsa`, subject to compatibility confirmation.
 
 The choice must preserve issuer, signature, expiry, audience, algorithm, and key
 rotation checks. No required JWT/Keycloak package is currently installed.
@@ -159,8 +157,8 @@ claim:
 - Claim snapshots are stored only for a documented domain need.
 - Profiles contain no password/hash, token, session, or client-secret data.
 
-Whether profiles are pre-provisioned, lazily created, or synchronized by an
-administrative process is `Decision pending`.
+Profiles are provisioned lazily by validated `sub`; creation must be idempotent and
+concurrency-safe.
 
 ## Security Responses
 
@@ -215,7 +213,7 @@ Keycloak must use persistent production-capable database storage. It may:
    credentials; or
 2. Use a separate PostgreSQL container.
 
-Selected option: `Decision pending`.
+Selected option: one PostgreSQL container with separate databases and credentials.
 
 In both cases, isolate credentials and schemas/databases, persist storage with named
 volumes, and configure practical health checks/startup dependencies. A development
@@ -225,8 +223,7 @@ embedded database is not the definitive production architecture.
 
 - Record important application actions with the validated subject/profile.
 - Record authentication events available to the application without storing tokens.
-- Keycloak's own event logging remains distinct unless a correlation/import design
-  is explicitly adopted.
+- Keycloak login events are not imported in the initial version.
 - Redact authorization headers, cookies, tokens, secrets, passwords, and protected
   claim data.
 - Restrict complete audit-log access to `ADMINISTRATOR`.

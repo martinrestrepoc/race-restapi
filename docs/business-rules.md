@@ -11,7 +11,8 @@ the explicit academic rules without filling gaps by assumption.
   or refresh tokens.
 - A local user profile, when used, is resolved by the validated Keycloak `sub`
   claim rather than by email.
-- Only an `ADMINISTRATOR` may manage users.
+- Only an `ADMINISTRATOR` may manage local profile status. Keycloak user management
+  is outside the initial API scope.
 - Only an `ADMINISTRATOR` may view the complete audit log.
 - A `RACE_ORGANIZER` may manage races, registrations, and results and may view
   competitors and teams.
@@ -19,7 +20,13 @@ the explicit academic rules without filling gaps by assumption.
 - Authentication failure returns `401`; insufficient permission for an
   authenticated user returns `403`.
 
-Local profile status values and transitions are `Decision pending`.
+- Keycloak roles are API client roles.
+- Local profiles are provisioned lazily using the validated `sub` claim.
+- Local profile statuses are `ACTIVE` and `DISABLED`.
+- A `DISABLED` local profile cannot perform domain operations even when its
+  Keycloak token is valid.
+- NestJS does not manage Keycloak users through the Admin API in the initial
+  version.
 
 ## Competitors
 
@@ -30,37 +37,23 @@ Local profile status values and transitions are `Decision pending`.
 - A competitor type must be one of `DWARF`, `CAMEL`, `MEDIUM`, or `OTHER`.
 - A competitor's classification must match its actual approved competitor type.
 - Only an `ACTIVE` competitor may register for a new race.
-- A competitor with official results must not be physically deleted; the competitor
-  must be retired or deactivated.
+- A competitor with historical records must not be physically deleted; the
+  competitor must be retired.
 - A competitor may belong to at most one active team at a time.
 - The same competitor must not be added to the same team more than once.
 
 ### Competitor Status Transitions
 
-Defined statuses: `ACTIVE`, `INJURED`, `SUSPENDED`, `RETIRED`.
-
-**Valid transitions explicitly defined by the specification**
-
-- A competitor with official results may be moved to `RETIRED` instead of being
-  physically deleted.
-
-**Forbidden transitions or effects explicitly defined**
-
-- A competitor not in `ACTIVE` status cannot register for a new race.
-- A competitor with official results cannot be physically deleted.
-
-**Undefined transitions**
-
-`Decision pending` - the specification does not define the complete transition graph,
-whether `RETIRED` is terminal, or whether injured/suspended competitors can return
-to `ACTIVE`.
+Statuses are `ACTIVE`, `SUSPENDED`, and `RETIRED`. Allowed transitions are
+`ACTIVE` -> `SUSPENDED`, `SUSPENDED` -> `ACTIVE`, `ACTIVE` ->
+`RETIRED`, and `SUSPENDED` -> `RETIRED`. `RETIRED` is terminal.
 
 ## Teams
 
 - A team name must be unique.
 - A team must contain at least one competitor before it enters a race.
 - A competitor cannot belong to more than one active team at the same time.
-- A suspended team cannot enter a race.
+- An inactive team cannot enter a race or receive new active members.
 - A competitor cannot be added to the same team twice.
 - A team with official race history must not be physically deleted; it must be
   deactivated.
@@ -69,19 +62,9 @@ to `ACTIVE`.
 
 ### Team Status Transitions
 
-**Valid transitions explicitly defined**
-
-- A team with official race history may be deactivated instead of being deleted.
-
-**Forbidden transitions or effects explicitly defined**
-
-- A suspended team cannot enter a race.
-- A team with official race history cannot be physically deleted.
-
-**Undefined transitions**
-
-`Decision pending` - the specification refers to active, suspended, and deactivated
-teams but does not define a `TeamStatus` enumeration or a complete lifecycle.
+Statuses are `ACTIVE` and `INACTIVE`, with transitions allowed in both
+directions. Inactive teams preserve history. Active membership uses a null
+`leftAt`; ending membership sets `leftAt` rather than deleting the record.
 
 ## Races
 
@@ -100,30 +83,17 @@ teams but does not define a `TeamStatus` enumeration or a complete lifecycle.
 
 ### Race Status Transitions
 
-Defined statuses: `DRAFT`, `OPEN_FOR_REGISTRATION`,
-`CLOSED_FOR_REGISTRATION`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`.
+Statuses are `DRAFT`, `OPEN_FOR_REGISTRATION`, `CLOSED`, `IN_PROGRESS`,
+`COMPLETED`, and `CANCELLED`.
 
-**Valid transitions explicitly established by prerequisites**
+Allowed transitions are:
 
-- `OPEN_FOR_REGISTRATION` may move to a state where registration is closed.
-- A race must be `IN_PROGRESS` before results can be entered.
-- An `IN_PROGRESS` race may become `COMPLETED` only when official results exist.
-- A race may become `CANCELLED`; once cancelled it cannot receive registrations.
+- `DRAFT` -> `OPEN_FOR_REGISTRATION` or `CANCELLED`
+- `OPEN_FOR_REGISTRATION` -> `CLOSED` or `CANCELLED`
+- `CLOSED` -> `IN_PROGRESS` or `CANCELLED`
+- `IN_PROGRESS` -> `COMPLETED` or `CANCELLED`
 
-These statements define ordering constraints, not a complete list of direct
-transitions.
-
-**Forbidden transitions explicitly defined**
-
-- `COMPLETED` -> `DRAFT`.
-- Any transition or edit that makes a completed race editable.
-- Any registration operation while the race is `CANCELLED`.
-
-**Undefined transitions**
-
-`Decision pending` - allowed direct transitions, cancellation sources, reopening,
-rollback behavior, and whether `COMPLETED`/`CANCELLED` are terminal are not fully
-defined.
+`COMPLETED` and `CANCELLED` are terminal.
 
 ## Registrations
 
@@ -138,86 +108,49 @@ defined.
 - Assigned lane or starting position must be unique within the race.
 - A rejected registration must include a clear rejection reason.
 - Only approved registrations may receive results.
-- Registration must not cause race capacity to be exceeded.
+- Capacity and lane assignment are validated atomically at approval.
+- Only approved registrations consume capacity.
+- Cancellation is allowed only before registration closes.
 
 ### Registration Status Transitions
 
-Defined statuses: `PENDING`, `APPROVED`, `REJECTED`, `CANCELLED`.
-
-**Valid transitions explicitly implied by named operations**
-
-- `PENDING` -> `APPROVED`.
-- `PENDING` -> `REJECTED`, with a reason.
-- A registration may become `CANCELLED`.
-
-**Forbidden transitions explicitly defined**
-
-- No additional status-to-status prohibition is explicit.
-
-**Undefined transitions**
-
-`Decision pending` - who may cancel, cancellation source statuses, whether decisions
-can be reversed, and whether rejected/cancelled states are terminal are not defined.
+New registrations start as `PENDING`. Administrators and race organizers may
+transition `PENDING` to `APPROVED` or `REJECTED`; rejection requires a reason.
+A nonterminal registration may become `CANCELLED` only before registration closes.
+`REJECTED` and `CANCELLED` are terminal. The cancellation actor and exact source
+states remain `Decision pending`.
 
 ## Results
 
-- Results may be entered only while the race is `IN_PROGRESS`.
-- Only approved registered participants may receive results.
-- A participant must not have multiple official results for the same race.
-- Final positions among normally finished participants must be unique.
-- Completion time must be greater than zero.
-- A `DISQUALIFIED` participant must not be the winner.
-- A race may have only one official winner.
-- Result updates must update victories, defeats, completed-race counts, and
-  standings consistently.
-- A recorded completion time must not imply that the participant finished before
-  the race began.
-- A race cannot become `COMPLETED` without official results.
-
-### Result Status
-
-Defined statuses: `FINISHED`, `DISQUALIFIED`, `DID_NOT_FINISH`,
-`DID_NOT_START`.
-
-These values describe outcomes rather than a lifecycle.
-
-**Valid transitions**
-
-`Decision pending` - the specification permits result updates but defines no
-status-transition graph.
-
-**Forbidden transitions or outcomes explicitly defined**
-
-- A `DISQUALIFIED` result cannot hold the winning position.
-- Two results cannot both be the official winner.
-- Two normal finishers cannot share a final position.
-
-**Undefined transitions**
-
-`Decision pending` - correction/officialization rules, permitted changes after race
-completion, and result versioning are not defined.
+- Result types are `FINISHED`, `DID_NOT_START`, `DID_NOT_FINISH`, and
+  `DISQUALIFIED`.
+- Results require an approved registration and may initially be entered only during
+  `IN_PROGRESS`.
+- A finished result requires positive raw time and a unique finishing position.
+- Raw, penalty, and final time use integer milliseconds.
+- The winner has the lowest final time; a disqualified participant cannot win.
+- Completing a race makes its results official.
+- Administrators and race organizers may correct official results after completion.
+- Corrections are audited and standings are recalculated atomically.
+- Results are corrected rather than deleted.
+- `RaceResult` is authoritative; statistics are derived rather than stored.
 
 ## Standings
 
-- A first-place finish awards 10 points.
-- A second-place finish awards 7 points.
-- A third-place finish awards 5 points.
-- A fourth-place finish awards 3 points.
-- A fifth-place finish awards 1 point.
-- A `DID_NOT_FINISH` result awards 0 points.
-- A `DISQUALIFIED` result awards 0 points.
-- Standings and stored statistics must remain consistent after result updates.
-
-`Decision pending` - points for `DID_NOT_START`, tie-breaking, penalty-time
-calculation, team aggregation, and whether standings include unofficial results are
-not defined.
+- The official points table remains `Decision pending` until the academic source
+  PDF is available and verified.
+- `DID_NOT_START`, `DID_NOT_FINISH`, and `DISQUALIFIED` award zero points.
+- Standings use official results only.
+- Individual order is total points, wins, second places, completed races, then best
+  final time.
+- Team standings use only races where the team was directly registered.
+- The final-time formula and handling of equal final times remain pending.
 
 ## Audit Logs
 
 - Important actions must be auditable, including user creation, competitor changes,
   race cancellation, registration decisions, and result modifications.
-- Login activity must be auditable to the extent available through the adopted
-  Keycloak/application event integration.
+- Keycloak login events are not imported in the initial version.
 - An audit entry identifies the actor, action, affected entity type and identifier,
   and timestamp.
 - Previous and new values may be recorded when appropriate.
@@ -225,5 +158,5 @@ not defined.
 - Audit records must not contain credentials, access tokens, refresh tokens, client
   secrets, or other protected values.
 
-Audit-log retention, immutability, redaction, and the exact Keycloak event ingestion
-mechanism are `Decision pending`.
+Audit logs are append-only and have no application update/delete endpoints. Their
+retention duration remains `Decision pending`.
