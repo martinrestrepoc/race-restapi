@@ -5,9 +5,11 @@ results, standings, and audit records for a fictional racing league.
 
 The product will combine this backend with a separate graphical frontend, PostgreSQL,
 and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
-API over HTTP, and never accesses PostgreSQL directly. This repository is currently
-an initial NestJS starter: the domain, persistence, identity integration, frontend,
-and container infrastructure remain to be implemented.
+API over HTTP, and never accesses PostgreSQL directly. This repository is organized
+as a monorepo: the initial NestJS starter lives under `backend/`, while `frontend/`
+is reserved for the React application. The domain, persistence, identity
+integration, frontend application, and container infrastructure remain to be
+implemented.
 
 ## Objective
 
@@ -42,14 +44,15 @@ PostgreSQL, Keycloak, OpenID Connect, OAuth 2.0, Docker, Docker Compose, Jest,
 
 Current repository state:
 
-- Package manager: npm (`package-lock.json` is present).
+- Package manager: npm (`backend/package-lock.json` is present).
 - NestJS 11 and TypeScript are installed.
 - Jest, `@nestjs/testing`, and Supertest are installed.
 - ESLint and Prettier are configured.
-- TypeORM, PostgreSQL drivers, validation packages, configuration packages, and
-  Keycloak integration are not installed.
-- No Dockerfile, Compose file, `.env.example`, migrations, seeds, or frontend is
-  present.
+- TypeORM, the PostgreSQL driver, typed environment validation, global request
+  validation, and migration commands are configured.
+- Keycloak integration is not installed.
+- No Dockerfile, Compose file, schema migrations, seeds, or frontend application
+  is present.
 - No Node version file or package `engines` constraint is present. The inspected
   development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
 
@@ -68,47 +71,43 @@ Detailed boundaries and the proposed module layout are in
 ## Prerequisites
 
 - Node.js 24 after dependency compatibility confirmation.
-- npm (the repository currently uses `package-lock.json`).
+- npm (the backend currently uses `backend/package-lock.json`).
 - Docker with Docker Compose: required for the target environment, not yet
   configured.
-- PostgreSQL and Keycloak: required by the target architecture, not yet configured.
+- A locally accessible PostgreSQL instance is required to start the backend until
+  the later Docker phase.
+- Keycloak is required by the target architecture but is not yet configured.
 - React/TypeScript/Vite frontend under target `frontend/`.
 
 ## Installation
 
-Install the currently declared dependencies:
+Install the currently declared backend dependencies:
 
 ```bash
+cd backend
 npm ci
 ```
 
-This installs the starter only; it does not add the missing target-stack packages.
+This installs the currently configured backend packages.
 
 ## Environment Configuration
 
-No `.env.example` or application configuration layer exists yet. Before introducing
-database or identity integration, create a non-secret `.env.example` and typed
-configuration for, at minimum, these conceptual settings:
+Copy the non-secret template and replace its local database values:
 
-```text
-PORT
-DATABASE_HOST
-DATABASE_PORT
-DATABASE_NAME
-DATABASE_USERNAME
-DATABASE_PASSWORD
-KEYCLOAK_ISSUER
-KEYCLOAK_AUDIENCE
-KEYCLOAK_JWKS_URI
+```bash
+cd backend
+cp .env.example .env
 ```
 
-Final variable names, realm/client identifiers, ports, and whether
-`KEYCLOAK_JWKS_URI` is derived from the issuer are `Decision pending`. Never commit
-real credentials, admin passwords, client secrets, access tokens, or refresh tokens.
+The current configuration validates `NODE_ENV`, `PORT`, `DATABASE_HOST`,
+`DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and
+`DATABASE_SSL` at startup. Identity variables will be added with the Keycloak
+integration. Never commit real credentials, admin passwords, client secrets,
+access tokens, or refresh tokens.
 
 ## Development
 
-The existing starter can be run in watch mode:
+From `backend/`, the existing starter can be run in watch mode:
 
 ```bash
 npm run start:dev
@@ -152,21 +151,26 @@ in this repository yet.
 
 ## Migrations and Seeds
 
-TypeORM migrations are the required schema-evolution mechanism, but TypeORM and
-migration scripts are not currently configured.
+TypeORM migrations are the required schema-evolution mechanism.
 
-```text
-Decision pending
+```bash
+cd backend
+npm run migration:generate -- src/database/migrations/MigrationName
+npm run migration:run
+npm run migration:show
+npm run migration:revert
 ```
 
-Seeds do not currently exist. Academic demonstration data must eventually include
-the minimum dataset in [Project requirements](docs/project-requirements.md), without
-embedding real credentials. Keycloak demo accounts must be provisioned through a
-reproducible realm setup rather than application-database seeds.
+There are no schema migrations yet because no persistence entities have been
+introduced. Seeds also do not exist. Academic demonstration data must eventually
+include the minimum dataset in
+[Project requirements](docs/project-requirements.md), without embedding real
+credentials. Keycloak demo accounts must be provisioned through a reproducible
+realm setup rather than application-database seeds.
 
 ## Tests and Quality
 
-These scripts currently exist:
+These scripts currently exist in `backend/package.json`:
 
 ```bash
 npm test
@@ -187,16 +191,16 @@ for the required test matrix and isolation strategy.
 .
 ├── AGENTS.md
 ├── README.md
+├── backend/               # NestJS API application
+│   ├── src/               # Current starter; target domain modules go here
+│   ├── test/              # Backend E2E tests
+│   ├── package.json
+│   └── package-lock.json
 ├── docs/                  # Authoritative project documentation
-├── src/                   # Current NestJS starter; target domain modules go here
-├── test/                  # E2E tests
-├── package.json
-├── package-lock.json
-├── eslint.config.mjs
-└── tsconfig*.json
+└── frontend/              # Reserved for the React/TypeScript/Vite application
 ```
 
-The expected modular `src/` layout is documented in
+The expected modular `backend/src/` layout is documented in
 [Architecture](docs/architecture.md).
 
 ## Roles
@@ -260,11 +264,12 @@ Current and planned URLs:
 
 - Only the default NestJS starter behavior exists.
 - Domain modules and business rules are not implemented.
-- TypeORM and PostgreSQL are not configured.
+- TypeORM and PostgreSQL connection settings are configured, but no database
+  instance is provided by the repository yet.
 - Keycloak authentication and authorization are not configured.
 - Docker Compose and persistent storage are not configured.
-- The mandatory graphical frontend is not present.
-- No domain tests, migrations, seeds, or reproducible demo accounts exist.
+- The mandatory graphical frontend application is not implemented.
+- No domain tests, schema migrations, seeds, or reproducible demo accounts exist.
 
 ## Future Improvements
 

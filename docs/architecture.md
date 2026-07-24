@@ -9,11 +9,14 @@ same topic. Their acceptance does not imply implementation.
 ## Status
 
 This document defines the target architecture and distinguishes it from the current
-repository. At inspection time, the repository is the default NestJS starter:
-NestJS 11, TypeScript, npm, Jest, `@nestjs/testing`, Supertest, ESLint, and Prettier
-are present. TypeORM, PostgreSQL integration, Keycloak integration, validation
-packages, Docker, migrations, seeds, environment configuration, domain modules, and
-the frontend are not yet present.
+repository. The repository now has the accepted `backend/` and `frontend/`
+monorepo layout. `backend/` contains the default NestJS starter with NestJS 11,
+TypeScript, npm, Jest, `@nestjs/testing`, Supertest, ESLint, and Prettier;
+`frontend/` is currently a placeholder. The backend now has typed environment
+validation, TypeORM/PostgreSQL connection configuration, migration tooling, global
+request validation, the `/api/v1` prefix, and uniform error handling. Keycloak,
+Docker, schema migrations, seeds, domain modules, and the frontend application are
+not yet present.
 
 ## System Context
 
@@ -55,7 +58,7 @@ NestJS validation uses Passport JWT with `jwks-rsa`, subject to compatibility co
 ## Target Backend Layout
 
 ```text
-src/
+backend/src/
 ├── auth/
 │   ├── decorators/
 │   ├── guards/
@@ -246,7 +249,8 @@ ownership, state, or other application data rather than only on a global role.
   positions, and official winner assignment require database constraints and/or
   locking. The exact strategy is `Decision pending`.
 
-Migration and seed npm scripts are not currently configured.
+Migration create/generate/run/revert/show scripts are configured against the shared
+TypeORM DataSource. Seed tooling is not yet configured.
 
 ## Docker Topology
 
@@ -281,14 +285,15 @@ working command.
 
 ## Configuration
 
-Use environment variables through NestJS `ConfigModule` and typed validation when
-introduced. Separate development, test, and production configuration. Keep a
-non-secret `.env.example`; ignore local `.env` files. Validate required variables at
-startup and never log credentials or tokens.
+The backend uses global NestJS `ConfigModule` configuration with typed startup
+validation. The current schema defines `NODE_ENV`, `PORT`, `DATABASE_HOST`,
+`DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and
+`DATABASE_SSL`. A non-secret `backend/.env.example` is committed while local `.env`
+files remain ignored.
 
-Exact variable names and configuration schema remain `Decision pending`; the
-conceptual requirements are documented in [Security](security.md) and the
-[README](../README.md).
+Keycloak variable names and the complete production configuration schema remain
+`Decision pending`; the conceptual requirements are documented in
+[Security](security.md) and the [README](../README.md).
 
 ## Related Documentation
 

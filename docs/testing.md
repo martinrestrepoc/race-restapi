@@ -198,7 +198,8 @@ The frontend test framework and repository are `Decision pending`.
 
 ## Existing Commands
 
-The following scripts are present in `package.json`:
+The following scripts are present in `backend/package.json` and are run from the
+`backend/` directory:
 
 ```bash
 npm test
@@ -208,17 +209,19 @@ npm run test:debug
 npm run test:e2e
 npm run lint
 npm run format
+npm run migration:run
+npm run migration:revert
+npm run migration:show
 ```
 
 `npm run lint` and `npm run format` currently write fixes. `npm run build` is also
-available as a compile check.
+available as a compile check. Migration commands require a configured, reachable
+PostgreSQL database.
 
-No separate integration-test, database-test, migration, seed, or container-test
-script exists.
+No separate integration-test, database-test, seed, or container-test script exists.
 
 ```text
 Recommended script - not currently configured: test:integration
-Recommended script - not currently configured: migration:run
 Recommended script - not currently configured: seed
 ```
 
