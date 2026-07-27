@@ -1,0 +1,75 @@
+name: race-management
+
+# Compose lee automáticamente el archivo .env ubicado junto a este archivo.
+# ${VARIABLE:-valor} usa VARIABLE o el valor indicado por defecto.
+# ${VARIABLE:?mensaje} exige que VARIABLE exista; si no, Compose se detiene y
+# muestra el mensaje antes de crear los contenedores.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      # Estas variables inicializan la base y el usuario cuando el volumen está
+      # vacío. Cambiarlas después no modifica una base ya inicializada.
+      POSTGRES_DB: ${POSTGRES_DB:-race_db}
+      POSTGRES_USER: ${POSTGRES_USER:-race_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+    ports:
+      # Formato: "puerto_en_el_host:puerto_dentro_del_contenedor".
+      # DBeaver se conecta a localhost y al valor de POSTGRES_HOST_PORT.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    volumes:
+      # El volumen nombrado conserva los datos aunque se eliminen los contenedores.
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      # $$ escapa el signo $ de Compose. Así POSTGRES_USER y POSTGRES_DB se
+      # resuelven dentro del contenedor, donde existen como variables de entorno.
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    networks:
+      - race_network
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # "postgres" es el nombre DNS interno del servicio definido arriba.
+      # Entre contenedores se usa 5432, no el puerto publicado en el host.
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      # El backend reutiliza las credenciales de inicialización de PostgreSQL.
+      DATABASE_NAME: ${POSTGRES_DB:-race_db}
+      DATABASE_USERNAME: ${POSTGRES_USER:-race_app}
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+      DATABASE_SSL: "false"
+    ports:
+      # La API queda disponible en localhost y en el valor de BACKEND_PORT.
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      # NestJS se inicia solo cuando PostgreSQL supera su healthcheck.
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - race_network
+
+volumes:
+  postgres_data:
+
+networks:
+  race_network:
+    driver: bridge

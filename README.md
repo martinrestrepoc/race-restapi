@@ -7,9 +7,9 @@ The product will combine this backend with a separate graphical frontend, Postgr
 and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
 API over HTTP, and never accesses PostgreSQL directly. This repository is organized
 as a monorepo: the initial NestJS starter lives under `backend/`, while `frontend/`
-is reserved for the React application. The domain, persistence, identity
-integration, frontend application, and container infrastructure remain to be
-implemented.
+is reserved for the React application. Competitor persistence and the initial
+backend/PostgreSQL container infrastructure are implemented; identity integration,
+the remaining domain modules, and the frontend application remain pending.
 
 ## Objective
 
@@ -53,7 +53,8 @@ Current repository state:
 - The competitor entity, migration, CRUD, filters, pagination, lifecycle rules, and
   automated tests are implemented.
 - Keycloak integration is not installed.
-- No Dockerfile, Compose file, seeds, or frontend application is present.
+- A multi-stage backend Dockerfile and a Compose stack for NestJS and PostgreSQL
+  are configured. Seeds and the frontend application are not present.
 - No Node version file or package `engines` constraint is present. The inspected
   development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
 
@@ -73,10 +74,9 @@ Detailed boundaries and the proposed module layout are in
 
 - Node.js 24 after dependency compatibility confirmation.
 - npm (the backend currently uses `backend/package-lock.json`).
-- Docker with Docker Compose: required for the target environment, not yet
-  configured.
-- A locally accessible PostgreSQL instance is required to start the backend until
-  the later Docker phase.
+- Docker with Docker Compose, when using the containerized development stack.
+- Alternatively, a locally accessible PostgreSQL instance when running NestJS
+  directly with npm.
 - Keycloak is required by the target architecture but is not yet configured.
 - React/TypeScript/Vite frontend under target `frontend/`.
 
@@ -114,9 +114,9 @@ From `backend/`, the existing starter can be run in watch mode:
 npm run start:dev
 ```
 
-It currently listens on `PORT` or falls back to port `3000` and exposes only the
-default starter route. The planned global prefix `/api/v1`, validation, database,
-and security behavior are not implemented.
+It listens on `PORT` or falls back to port `3000`. The API uses the `/api/v1`
+prefix and the competitor CRUD is available under `/api/v1/competitors`.
+Authentication and authorization are not implemented yet.
 
 Other existing run scripts:
 
@@ -129,26 +129,40 @@ npm run start:prod
 
 ## Docker
 
-The target local topology contains:
+The current Compose stack starts the NestJS backend and PostgreSQL. It includes a
+named database volume, an isolated network, health checks, and a startup dependency
+that waits for PostgreSQL. The backend runs pending TypeORM migrations before
+starting the API.
 
-- A separate frontend container
-- A NestJS API container
-- A PostgreSQL container for application data with a named volume
-- A Keycloak container with persistent database storage
-- An isolated network, environment configuration, ports, startup dependencies,
-  and practical health checks
-
-Keycloak and the application use one PostgreSQL container with separate databases
-and credentials.
-
-The intended command is:
+Create the Compose environment file at the repository root, set a local password,
+and start the services:
 
 ```bash
+cp .env.example .env
+# Edit POSTGRES_PASSWORD in .env
 docker compose up -d --build
+docker compose ps
 ```
 
-This is a target, not a working command: no Docker or Compose configuration exists
-in this repository yet.
+The API is available at `http://localhost:3000/api/v1` by default. PostgreSQL is
+published at `localhost:5433` by default so it does not conflict with a PostgreSQL
+instance already using port `5432`. Both ports can be changed in the root `.env`.
+Inside the Docker network, the backend connects to `postgres:5432`.
+
+Useful commands:
+
+```bash
+docker compose logs -f backend
+docker compose down
+```
+
+`docker compose down` preserves database data. Running `docker compose down -v`
+also deletes the named PostgreSQL volume and all data stored in it.
+
+The target topology will later add the separate frontend and Keycloak services.
+Changing PostgreSQL initialization credentials after the volume has been created
+does not update the existing database user; recreate the volume only when losing
+local data is acceptable.
 
 ## Migrations and Seeds
 
@@ -190,9 +204,12 @@ clear competitor data. See [Testing](docs/testing.md) for the required matrix.
 
 ```text
 .
+├── .env.example           # Compose configuration template
 ├── AGENTS.md
 ├── README.md
+├── compose.yml            # Current backend and PostgreSQL stack
 ├── backend/               # NestJS API application
+│   ├── Dockerfile
 │   ├── src/               # Current starter; target domain modules go here
 │   ├── test/              # Backend E2E tests
 │   ├── package.json
@@ -239,13 +256,12 @@ scenario as credentials.
 
 Current and planned URLs:
 
-| Component      | URL                                             | Status                       |
-| -------------- | ----------------------------------------------- | ---------------------------- |
-| NestJS starter | `http://localhost:3000` by default              | Current, unprotected starter |
-| Planned API    | `/api/v1` under the backend origin              | Target                       |
-| Frontend       | `Decision pending`                              | Not present                  |
-| Keycloak       | `Decision pending`                              | Not configured               |
-| PostgreSQL     | Internal container endpoint: `Decision pending` | Not configured               |
+| Component  | URL                                      | Status                        |
+| ---------- | ---------------------------------------- | ----------------------------- |
+| NestJS API | `http://localhost:3000/api/v1`           | Current, not yet authenticated |
+| PostgreSQL | Host `localhost:5433`; Docker `postgres:5432` | Current                   |
+| Frontend   | `Decision pending`                       | Not present                   |
+| Keycloak   | `Decision pending`                       | Not configured                |
 
 ## Documentation
 
@@ -266,10 +282,9 @@ Current and planned URLs:
 - Only the competitor domain module is implemented.
 - Team, race, registration, result, standings, user-profile, and audit behavior is
   not implemented.
-- TypeORM and PostgreSQL connection settings are configured, but no database
-  instance is provided by the repository yet.
 - Keycloak authentication and authorization are not configured.
-- Docker Compose and persistent storage are not configured.
+- The current Compose topology includes only NestJS and PostgreSQL; frontend and
+  Keycloak containers are pending.
 - The mandatory graphical frontend application is not implemented.
 - No seeds or reproducible demo accounts exist; domain coverage currently includes
   competitors only.

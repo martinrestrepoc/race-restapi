@@ -14,8 +14,9 @@ monorepo layout. `backend/` contains the default NestJS starter with NestJS 11,
 TypeScript, npm, Jest, `@nestjs/testing`, Supertest, ESLint, and Prettier;
 `frontend/` is currently a placeholder. The backend now has typed environment
 validation, TypeORM/PostgreSQL connection configuration, migration tooling, global
-request validation, the `/api/v1` prefix, and uniform error handling. Keycloak,
-Docker, seeds, the remaining domain modules, and the frontend application are not
+request validation, the `/api/v1` prefix, and uniform error handling. A multi-stage
+backend image and a Compose topology for NestJS and PostgreSQL are present.
+Keycloak, seeds, the remaining domain modules, and the frontend application are not
 yet present. The competitor module and its initial schema migration are implemented.
 
 ## System Context
@@ -254,10 +255,14 @@ TypeORM DataSource. Seed tooling is not yet configured.
 
 ## Docker Topology
 
-The required target includes a frontend container, NestJS API container, PostgreSQL
-application database, Keycloak container, and persistent Keycloak storage. All
-services use explicit environment configuration, an isolated network, practical
-health checks, and startup dependencies.
+The current topology includes the NestJS API and a PostgreSQL application database.
+They use explicit environment configuration, an isolated network, health checks,
+and a startup dependency. PostgreSQL uses a named volume, and the backend applies
+pending TypeORM migrations before starting. The API container runs as the
+unprivileged Node user.
+
+The required target additionally includes a frontend container, a Keycloak
+container, and persistent Keycloak storage.
 
 Keycloak storage has two valid target patterns:
 
@@ -269,9 +274,9 @@ Selected pattern: one PostgreSQL container with separate application and Keycloa
 
 Both application and Keycloak data require named persistent volumes. Keycloak's
 development-only embedded database is not the production architecture. A realm
-import or equivalent reproducible configuration is required. No Docker files exist
-yet, so `docker compose up -d --build` is an intended outcome, not a currently
-working command.
+import or equivalent reproducible configuration is required. The current
+`docker compose up -d --build` command is operational for the backend and
+application database only; it is not yet the complete target topology.
 
 ## Frontend Boundary
 
