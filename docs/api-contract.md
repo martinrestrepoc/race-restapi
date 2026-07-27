@@ -8,9 +8,15 @@ same topic. Their acceptance does not imply implementation.
 
 ## Status and Scope
 
-This is the proposed contract; no domain endpoints are currently implemented.
-Business constraints remain authoritative in [Business rules](business-rules.md).
-Identity and token endpoints belong to Keycloak, not this API.
+The competitor endpoints are implemented. The remaining domain surface is proposed
+and not yet implemented. Business constraints remain authoritative in
+[Business rules](business-rules.md). Identity and token endpoints belong to
+Keycloak, not this API.
+
+Authentication integration is intentionally deferred while the domain modules are
+built. Competitor endpoints are temporarily unprotected for local development and
+must not be deployed as a secure API until the documented guards and roles are
+implemented.
 
 ## Base Path and Versioning
 
@@ -115,8 +121,15 @@ The initial version has no Keycloak Admin API facade. Local profile statuses are
 | `PATCH /api/v1/competitors/:id/status` | Status transition                 | Admin        |
 | `DELETE /api/v1/competitors/:id`       | Delete when allowed or deactivate | Admin        |
 
-Exact delete-versus-retire semantics must be explicit in implementation:
-`Decision pending`.
+The current implementation physically deletes competitors because registration,
+membership, and result history do not exist yet. Before those modules are released,
+deletion must check historical references and retire the competitor when history
+exists. `PUT` replaces all editable profile fields but does not change status;
+status changes use the dedicated `PATCH` endpoint and the transitions in ADR 0001.
+
+The implemented competitor list supports `status`, `type`, and `search` filters.
+`search` matches name, nickname, or origin. Allowed `sortBy` values are `name`,
+`nickname`, `type`, `status`, and `registeredAt`.
 
 ### Teams
 
@@ -200,7 +213,8 @@ Use a shared collection convention:
 - Unknown sort/filter fields return `400` rather than being interpolated into SQL.
 - Filtering, pagination, and sorting are mandatory for competitor lists and should
   be applied consistently to other potentially large collections.
-- The default page size and maximum allowed `limit` are `Decision pending`.
+- The default page is `1`, the default page size is `20`, and the maximum `limit`
+  is `100`.
 
 A proposed response envelope:
 
@@ -214,7 +228,7 @@ A proposed response envelope:
 }
 ```
 
-Whether empty results use `totalPages: 0` or `1` is `Decision pending`.
+Empty results use `totalPages: 0`.
 
 ## Dates, Times, and Measurements
 

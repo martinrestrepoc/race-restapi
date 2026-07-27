@@ -8,7 +8,11 @@ import { configureApplication } from './../src/configure-application';
 describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    if (!process.env.DATABASE_NAME?.endsWith('_test')) {
+      throw new Error('E2E tests require DATABASE_NAME ending in _test');
+    }
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
@@ -16,6 +20,10 @@ describe('AppController (e2e)', () => {
     app = moduleFixture.createNestApplication();
     configureApplication(app);
     await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
   });
 
   it('/api/v1 (GET)', () => {

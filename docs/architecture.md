@@ -15,8 +15,8 @@ TypeScript, npm, Jest, `@nestjs/testing`, Supertest, ESLint, and Prettier;
 `frontend/` is currently a placeholder. The backend now has typed environment
 validation, TypeORM/PostgreSQL connection configuration, migration tooling, global
 request validation, the `/api/v1` prefix, and uniform error handling. Keycloak,
-Docker, schema migrations, seeds, domain modules, and the frontend application are
-not yet present.
+Docker, seeds, the remaining domain modules, and the frontend application are not
+yet present. The competitor module and its initial schema migration are implemented.
 
 ## System Context
 

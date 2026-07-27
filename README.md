@@ -50,9 +50,10 @@ Current repository state:
 - ESLint and Prettier are configured.
 - TypeORM, the PostgreSQL driver, typed environment validation, global request
   validation, and migration commands are configured.
+- The competitor entity, migration, CRUD, filters, pagination, lifecycle rules, and
+  automated tests are implemented.
 - Keycloak integration is not installed.
-- No Dockerfile, Compose file, schema migrations, seeds, or frontend application
-  is present.
+- No Dockerfile, Compose file, seeds, or frontend application is present.
 - No Node version file or package `engines` constraint is present. The inspected
   development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
 
@@ -161,9 +162,8 @@ npm run migration:show
 npm run migration:revert
 ```
 
-There are no schema migrations yet because no persistence entities have been
-introduced. Seeds also do not exist. Academic demonstration data must eventually
-include the minimum dataset in
+The initial competitor schema migration is present. Seeds do not exist. Academic
+demonstration data must eventually include the minimum dataset in
 [Project requirements](docs/project-requirements.md), without embedding real
 credentials. Keycloak demo accounts must be provisioned through a reproducible
 realm setup rather than application-database seeds.
@@ -181,9 +181,10 @@ npm run lint
 npm run format
 ```
 
-The repository currently has only the NestJS starter unit and E2E tests. They do
-not cover the racing domain, PostgreSQL, or Keycloak. See [Testing](docs/testing.md)
-for the required test matrix and isolation strategy.
+Unit and PostgreSQL-backed E2E tests cover the implemented competitor module.
+Keycloak and the remaining racing domain are not covered yet. E2E requires an
+isolated database whose name ends in `_test`; the suite applies migrations and may
+clear competitor data. See [Testing](docs/testing.md) for the required matrix.
 
 ## Repository Structure
 
@@ -262,14 +263,16 @@ Current and planned URLs:
 
 ## Known Limitations
 
-- Only the default NestJS starter behavior exists.
-- Domain modules and business rules are not implemented.
+- Only the competitor domain module is implemented.
+- Team, race, registration, result, standings, user-profile, and audit behavior is
+  not implemented.
 - TypeORM and PostgreSQL connection settings are configured, but no database
   instance is provided by the repository yet.
 - Keycloak authentication and authorization are not configured.
 - Docker Compose and persistent storage are not configured.
 - The mandatory graphical frontend application is not implemented.
-- No domain tests, schema migrations, seeds, or reproducible demo accounts exist.
+- No seeds or reproducible demo accounts exist; domain coverage currently includes
+  competitors only.
 
 ## Future Improvements
 

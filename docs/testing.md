@@ -8,9 +8,11 @@ same topic. Their acceptance does not imply implementation.
 
 ## Current State
 
-Jest, `@nestjs/testing`, and Supertest are installed. The current repository has one
-default controller unit test and one default HTTP E2E test for `Hello World!`.
-There are no domain, TypeORM, PostgreSQL, Keycloak, role, migration, or seed tests.
+Jest, `@nestjs/testing`, and Supertest are installed. Competitor service tests cover
+creation, nickname conflicts, missing resources, and lifecycle transitions.
+Competitor E2E tests apply real migrations to isolated PostgreSQL and cover CRUD,
+pagination, validation, uniqueness, and lifecycle behavior. Keycloak, role, and seed
+tests do not exist yet.
 
 The target suite must contain at least 15 meaningful automated tests. Getter/setter
 tests do not count.
@@ -217,6 +219,10 @@ npm run migration:show
 `npm run lint` and `npm run format` currently write fixes. `npm run build` is also
 available as a compile check. Migration commands require a configured, reachable
 PostgreSQL database.
+
+`npm run test:e2e` runs sequentially and requires `DATABASE_NAME` to end in
+`_test`. The suite applies pending migrations and may clear the competitors table;
+it must never target development or production data.
 
 No separate integration-test, database-test, seed, or container-test script exists.
 

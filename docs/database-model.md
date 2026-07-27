@@ -10,8 +10,9 @@ same topic. Their acceptance does not imply implementation.
 
 PostgreSQL stores application-domain data. Keycloak stores identity-system data.
 TypeORM is the definitive ORM and TypeORM migrations are the definitive application
-schema-evolution mechanism. This is a conceptual model only; no entities or
-migrations currently exist.
+schema-evolution mechanism. `Competitor` is implemented as a TypeORM entity with a
+reviewed initial migration. The remaining entities in this document are still
+conceptual.
 
 ### Keycloak-Owned Data
 
@@ -335,4 +336,4 @@ write must be atomic. Partial unique-index design and transaction isolation are
   PostgreSQL application seeds.
 - Do not place real credentials in migrations, seeds, or realm exports.
 
-No migrations or seeds currently exist.
+The initial competitor migration exists. Seeds do not currently exist.
