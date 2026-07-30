@@ -169,14 +169,14 @@ At documentation creation time:
 
 - [x] A minimal NestJS starter builds and has starter tests.
 - [x] npm, ESLint, and Prettier configuration exist.
-- [x] The competitor domain implementation exists.
+- [x] Competitor, team, and historical-membership implementations exist.
 - [x] TypeORM/PostgreSQL configuration and migration tooling exist.
-- [x] The initial competitor migration exists; seeds remain pending.
+- [x] Competitor and team/membership migrations exist; seeds remain pending.
 - [ ] Keycloak integration/realm configuration exists.
 - [x] Docker/Compose configuration exists for the current backend/PostgreSQL scope.
 - [ ] The separate frontend application exists (the `frontend/` directory is
       currently only a placeholder).
-- [x] Competitor unit and database-backed E2E coverage exists; the remaining domain
-      and security coverage is pending.
+- [x] Competitor/team unit and database-backed E2E coverage exists; the remaining
+      domain and security coverage is pending.
 
 This baseline is informational and must be updated as implementation progresses.

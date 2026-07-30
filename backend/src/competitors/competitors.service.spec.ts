@@ -5,6 +5,7 @@ import { CompetitorType } from '../common/enums/competitor-type.enum';
 import { CreateCompetitorDto } from './dto/create-competitor.dto';
 import { Competitor } from './entities/competitor.entity';
 import { CompetitorsService } from './competitors.service';
+import { TeamMember } from '../teams/entities/team-member.entity';
 
 const createDto: CreateCompetitorDto = {
   name: 'Borin Stonehelm',
@@ -35,6 +36,9 @@ describe('CompetitorsService', () => {
     >
   >;
   let service: CompetitorsService;
+  let teamMembersRepository: jest.Mocked<
+    Pick<Repository<TeamMember>, 'exists'>
+  >;
 
   beforeEach(() => {
     repository = {
@@ -44,8 +48,12 @@ describe('CompetitorsService', () => {
       merge: jest.fn(),
       remove: jest.fn(),
     };
+    teamMembersRepository = {
+      exists: jest.fn().mockResolvedValue(false),
+    };
     service = new CompetitorsService(
       repository as unknown as Repository<Competitor>,
+      teamMembersRepository as unknown as Repository<TeamMember>,
     );
   });
 
@@ -104,5 +112,18 @@ describe('CompetitorsService', () => {
       service.updateStatus(competitor.id, CompetitorStatus.ACTIVE),
     ).rejects.toThrow(ConflictException);
     expect(repository.save).not.toHaveBeenCalled();
+  });
+
+  it('retires instead of deleting a competitor with membership history', async () => {
+    const competitor = createCompetitor();
+    repository.findOne.mockResolvedValue(competitor);
+    repository.save.mockImplementation((value) => Promise.resolve(value));
+    teamMembersRepository.exists.mockResolvedValue(true);
+
+    await service.remove(competitor.id);
+
+    expect(competitor.status).toBe(CompetitorStatus.RETIRED);
+    expect(repository.save).toHaveBeenCalledWith(competitor);
+    expect(repository.remove).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,7 @@ import { CompetitorQueryDto } from './dto/competitor-query.dto';
 import { CreateCompetitorDto } from './dto/create-competitor.dto';
 import { UpdateCompetitorDto } from './dto/update-competitor.dto';
 import { Competitor } from './entities/competitor.entity';
+import { TeamMember } from '../teams/entities/team-member.entity';
 
 export interface CompetitorListResult {
   items: Competitor[];
@@ -55,6 +56,8 @@ export class CompetitorsService {
   constructor(
     @InjectRepository(Competitor)
     private readonly competitorsRepository: Repository<Competitor>,
+    @InjectRepository(TeamMember)
+    private readonly teamMembersRepository: Repository<TeamMember>,
   ) {}
 
   async create(dto: CreateCompetitorDto): Promise<Competitor> {
@@ -142,6 +145,18 @@ export class CompetitorsService {
 
   async remove(id: string): Promise<void> {
     const competitor = await this.findOne(id);
+    const hasMembershipHistory = await this.teamMembersRepository.exists({
+      where: { competitorId: id },
+    });
+
+    if (hasMembershipHistory) {
+      if (competitor.status !== CompetitorStatus.RETIRED) {
+        competitor.status = CompetitorStatus.RETIRED;
+        await this.competitorsRepository.save(competitor);
+      }
+      return;
+    }
+
     await this.competitorsRepository.remove(competitor);
   }
 

@@ -17,7 +17,8 @@ validation, TypeORM/PostgreSQL connection configuration, migration tooling, glob
 request validation, the `/api/v1` prefix, and uniform error handling. A multi-stage
 backend image and a Compose topology for NestJS and PostgreSQL are present.
 Keycloak, seeds, the remaining domain modules, and the frontend application are not
-yet present. The competitor module and its initial schema migration are implemented.
+yet present. Competitor, team, and historical-membership modules and migrations are
+implemented.
 
 ## System Context
 

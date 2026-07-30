@@ -10,6 +10,7 @@ const environment: EnvironmentVariables = {
   DATABASE_USERNAME: 'race_test',
   DATABASE_PASSWORD: 'test-only-password',
   DATABASE_SSL: false,
+  TEAM_MAX_MEMBERS: 10,
 };
 
 describe('createTypeOrmOptions', () => {

@@ -10,9 +10,9 @@ same topic. Their acceptance does not imply implementation.
 
 PostgreSQL stores application-domain data. Keycloak stores identity-system data.
 TypeORM is the definitive ORM and TypeORM migrations are the definitive application
-schema-evolution mechanism. `Competitor` is implemented as a TypeORM entity with a
-reviewed initial migration. The remaining entities in this document are still
-conceptual.
+schema-evolution mechanism. `Competitor`, `Team`, and `TeamMember` are implemented
+as TypeORM entities with reviewed migrations. The remaining entities in this
+document are still conceptual.
 
 ### Keycloak-Owned Data
 
@@ -228,8 +228,7 @@ PostgreSQL the owner of credentials.
 - **Relationships:** has `TeamMember` records and team race registrations.
 - **Constraints:** unique name; configurable membership maximum; at least one
   eligible member before race entry.
-- **Nullability:** description may be nullable; responsible-person nullability is
-  `Decision pending`.
+- **Nullability:** description is nullable; responsible person is required.
 - **Indexes:** unique name and status.
 - **Deletion:** deactivate rather than delete when official race history exists.
 - **Audit fields:** creation time; update timestamp recommended.
@@ -324,8 +323,10 @@ PostgreSQL the owner of credentials.
 Application checks alone are insufficient for race capacity, duplicate registration,
 team membership, starting positions, and official finishing positions. Use
 PostgreSQL constraints where expressible and transactions/locking where a check and
-write must be atomic. Partial unique-index design and transaction isolation are
-`Decision pending` until the concrete schema is designed.
+write must be atomic. Team membership uses a partial unique index on
+`competitorId` where `leftAt` is null, and membership capacity is checked while the
+team row is locked. The corresponding strategy for registrations and results is
+`Decision pending` until those schemas are designed.
 
 ## Schema Evolution and Seeds
 
@@ -336,4 +337,4 @@ write must be atomic. Partial unique-index design and transaction isolation are
   PostgreSQL application seeds.
 - Do not place real credentials in migrations, seeds, or realm exports.
 
-The initial competitor migration exists. Seeds do not currently exist.
+Competitor and team/membership migrations exist. Seeds do not currently exist.

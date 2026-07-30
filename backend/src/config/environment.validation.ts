@@ -11,6 +11,7 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   DATABASE_USERNAME: string;
   DATABASE_PASSWORD: string;
   DATABASE_SSL: boolean;
+  TEAM_MAX_MEMBERS: number;
 }
 
 function readRequiredString(
@@ -71,6 +72,29 @@ function readBoolean(
   throw new Error(`Environment variable ${key} must be true or false`);
 }
 
+function readPositiveInteger(
+  config: Record<string, unknown>,
+  key: string,
+  defaultValue: number,
+  maximum: number,
+): number {
+  const rawValue = config[key] ?? defaultValue;
+  const value =
+    typeof rawValue === 'number'
+      ? rawValue
+      : typeof rawValue === 'string'
+        ? Number(rawValue)
+        : Number.NaN;
+
+  if (!Number.isInteger(value) || value < 1 || value > maximum) {
+    throw new Error(
+      `Environment variable ${key} must be an integer between 1 and ${maximum}`,
+    );
+  }
+
+  return value;
+}
+
 function readNodeEnvironment(config: Record<string, unknown>): NodeEnvironment {
   const value = config.NODE_ENV ?? 'development';
 
@@ -98,5 +122,6 @@ export function validateEnvironment(
     DATABASE_USERNAME: readRequiredString(config, 'DATABASE_USERNAME'),
     DATABASE_PASSWORD: readRequiredString(config, 'DATABASE_PASSWORD'),
     DATABASE_SSL: readBoolean(config, 'DATABASE_SSL', false),
+    TEAM_MAX_MEMBERS: readPositiveInteger(config, 'TEAM_MAX_MEMBERS', 10, 100),
   };
 }

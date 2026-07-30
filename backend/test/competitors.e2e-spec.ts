@@ -1,13 +1,12 @@
 import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../src/app.module';
 import { CompetitorStatus } from '../src/common/enums/competitor-status.enum';
 import { CompetitorType } from '../src/common/enums/competitor-type.enum';
 import { configureApplication } from '../src/configure-application';
-import { Competitor } from '../src/competitors/entities/competitor.entity';
 
 interface CompetitorBody {
   id: string;
@@ -56,7 +55,7 @@ const validCompetitor = {
 
 describe('Competitors (e2e)', () => {
   let app: INestApplication<App>;
-  let competitorsRepository: Repository<Competitor>;
+  let dataSource: DataSource;
 
   beforeAll(async () => {
     if (!process.env.DATABASE_NAME?.endsWith('_test')) {
@@ -73,13 +72,14 @@ describe('Competitors (e2e)', () => {
     configureApplication(app);
     await app.init();
 
-    const dataSource = app.get(DataSource);
+    dataSource = app.get(DataSource);
     await dataSource.runMigrations();
-    competitorsRepository = dataSource.getRepository(Competitor);
   });
 
   beforeEach(async () => {
-    await competitorsRepository.clear();
+    await dataSource.query(
+      'TRUNCATE TABLE team_members, teams, competitors RESTART IDENTITY CASCADE',
+    );
   });
 
   afterAll(async () => {

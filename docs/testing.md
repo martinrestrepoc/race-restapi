@@ -8,11 +8,12 @@ same topic. Their acceptance does not imply implementation.
 
 ## Current State
 
-Jest, `@nestjs/testing`, and Supertest are installed. Competitor service tests cover
-creation, nickname conflicts, missing resources, and lifecycle transitions.
-Competitor E2E tests apply real migrations to isolated PostgreSQL and cover CRUD,
-pagination, validation, uniqueness, and lifecycle behavior. Keycloak, role, and seed
-tests do not exist yet.
+Jest, `@nestjs/testing`, and Supertest are installed. Competitor and team service
+tests cover creation, uniqueness conflicts, lifecycle transitions, historical
+deletion behavior, membership capacity, and missing memberships. E2E tests apply
+real migrations to isolated PostgreSQL and cover both CRUD modules, pagination,
+validation, uniqueness, lifecycle behavior, exclusive active membership, and
+membership history. Keycloak, role, and seed tests do not exist yet.
 
 The target suite must contain at least 15 meaningful automated tests. Getter/setter
 tests do not count.
@@ -221,8 +222,8 @@ available as a compile check. Migration commands require a configured, reachable
 PostgreSQL database.
 
 `npm run test:e2e` runs sequentially and requires `DATABASE_NAME` to end in
-`_test`. The suite applies pending migrations and may clear the competitors table;
-it must never target development or production data.
+`_test`. The suite applies pending migrations and may clear competitor, team, and
+membership tables; it must never target development or production data.
 
 No separate integration-test, database-test, seed, or container-test script exists.
 

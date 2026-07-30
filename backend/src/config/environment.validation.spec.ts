@@ -22,7 +22,21 @@ describe('validateEnvironment', () => {
       DATABASE_USERNAME: 'race_test',
       DATABASE_PASSWORD: 'test-only-password',
       DATABASE_SSL: false,
+      TEAM_MAX_MEMBERS: 10,
     });
+  });
+
+  it('validates the configured team membership limit', () => {
+    expect(
+      validateEnvironment({ ...validEnvironment, TEAM_MAX_MEMBERS: '25' })
+        .TEAM_MAX_MEMBERS,
+    ).toBe(25);
+
+    expect(() =>
+      validateEnvironment({ ...validEnvironment, TEAM_MAX_MEMBERS: '0' }),
+    ).toThrow(
+      'Environment variable TEAM_MAX_MEMBERS must be an integer between 1 and 100',
+    );
   });
 
   it('rejects missing required database values', () => {

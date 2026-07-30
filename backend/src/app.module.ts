@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { CompetitorsModule } from './competitors/competitors.module';
 import { validateEnvironment } from './config/environment.validation';
 import { DatabaseModule } from './database/database.module';
+import { TeamsModule } from './teams/teams.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { DatabaseModule } from './database/database.module';
     }),
     DatabaseModule,
     CompetitorsModule,
+    TeamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

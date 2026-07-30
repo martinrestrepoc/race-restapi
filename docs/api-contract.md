@@ -8,13 +8,13 @@ same topic. Their acceptance does not imply implementation.
 
 ## Status and Scope
 
-The competitor endpoints are implemented. The remaining domain surface is proposed
-and not yet implemented. Business constraints remain authoritative in
+The competitor, team, and membership endpoints are implemented. The remaining
+domain surface is proposed and not yet implemented. Business constraints remain authoritative in
 [Business rules](business-rules.md). Identity and token endpoints belong to
 Keycloak, not this API.
 
 Authentication integration is intentionally deferred while the domain modules are
-built. Competitor endpoints are temporarily unprotected for local development and
+built. Implemented domain endpoints are temporarily unprotected for local development and
 must not be deployed as a secure API until the documented guards and roles are
 implemented.
 
@@ -121,11 +121,11 @@ The initial version has no Keycloak Admin API facade. Local profile statuses are
 | `PATCH /api/v1/competitors/:id/status` | Status transition                 | Admin        |
 | `DELETE /api/v1/competitors/:id`       | Delete when allowed or deactivate | Admin        |
 
-The current implementation physically deletes competitors because registration,
-membership, and result history do not exist yet. Before those modules are released,
-deletion must check historical references and retire the competitor when history
-exists. `PUT` replaces all editable profile fields but does not change status;
-status changes use the dedicated `PATCH` endpoint and the transitions in ADR 0001.
+The current implementation physically deletes competitors without membership
+history and retires competitors that have membership history. Registration and
+result history checks will extend this policy when those modules are introduced.
+`PUT` replaces all editable profile fields but does not change status; status
+changes use the dedicated `PATCH` endpoint and the transitions in ADR 0001.
 
 The implemented competitor list supports `status`, `type`, and `search` filters.
 `search` matches name, nickname, or origin. Allowed `sortBy` values are `name`,
@@ -139,9 +139,23 @@ The implemented competitor list supports `status`, `type`, and `search` filters.
 | `GET /api/v1/teams`                                  | Filtered/paginated list           | Read         |
 | `GET /api/v1/teams/:id`                              | Team detail                       | Read         |
 | `PUT /api/v1/teams/:id`                              | Full team update                  | Admin        |
+| `PATCH /api/v1/teams/:id/status`                     | Status transition                 | Admin        |
 | `DELETE /api/v1/teams/:id`                           | Delete when allowed or deactivate | Admin        |
 | `POST /api/v1/teams/:teamId/members/:competitorId`   | Add member                        | Admin        |
 | `DELETE /api/v1/teams/:teamId/members/:competitorId` | Remove/end membership             | Admin        |
+
+The implemented list supports `status` and `search`; search matches the name,
+description, or responsible person. Allowed `sortBy` values are `name`,
+`responsiblePerson`, `status`, and `createdAt`. Team detail includes current and
+historical memberships with their competitor representation.
+
+`PUT` replaces the editable name, nullable description, and responsible person;
+status changes use `PATCH`. Teams without membership history are physically
+deleted. Teams with membership history are retained as `INACTIVE`. Adding a member
+requires an active team, respects `TEAM_MAX_MEMBERS`, and rejects a competitor who
+already has an active membership. Removing a member sets `leftAt` and preserves the
+record. Capacity checks and membership creation execute transactionally, and a
+partial unique PostgreSQL index enforces one active team per competitor.
 
 ### Races
 

@@ -23,6 +23,8 @@ import { createTypeOrmOptions } from './typeorm-options.factory';
           DATABASE_PASSWORD:
             configService.getOrThrow<string>('DATABASE_PASSWORD'),
           DATABASE_SSL: configService.getOrThrow<boolean>('DATABASE_SSL'),
+          TEAM_MAX_MEMBERS:
+            configService.getOrThrow<number>('TEAM_MAX_MEMBERS'),
         };
 
         return {

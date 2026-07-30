@@ -7,7 +7,7 @@ The product will combine this backend with a separate graphical frontend, Postgr
 and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
 API over HTTP, and never accesses PostgreSQL directly. This repository is organized
 as a monorepo: the initial NestJS starter lives under `backend/`, while `frontend/`
-is reserved for the React application. Competitor persistence and the initial
+is reserved for the React application. Competitor/team persistence and the initial
 backend/PostgreSQL container infrastructure are implemented; identity integration,
 the remaining domain modules, and the frontend application remain pending.
 
@@ -50,8 +50,8 @@ Current repository state:
 - ESLint and Prettier are configured.
 - TypeORM, the PostgreSQL driver, typed environment validation, global request
   validation, and migration commands are configured.
-- The competitor entity, migration, CRUD, filters, pagination, lifecycle rules, and
-  automated tests are implemented.
+- Competitor and team entities, migrations, CRUD, filters, pagination, lifecycle
+  rules, historical memberships, and automated tests are implemented.
 - Keycloak integration is not installed.
 - A multi-stage backend Dockerfile and a Compose stack for NestJS and PostgreSQL
   are configured. Seeds and the frontend application are not present.
@@ -102,9 +102,10 @@ cp .env.example .env
 
 The current configuration validates `NODE_ENV`, `PORT`, `DATABASE_HOST`,
 `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and
-`DATABASE_SSL` at startup. Identity variables will be added with the Keycloak
-integration. Never commit real credentials, admin passwords, client secrets,
-access tokens, or refresh tokens.
+`DATABASE_SSL` at startup. `TEAM_MAX_MEMBERS` controls the maximum active
+memberships per team and defaults to `10`. Identity variables will be added with
+the Keycloak integration. Never commit real credentials, admin passwords, client
+secrets, access tokens, or refresh tokens.
 
 ## Development
 
@@ -115,8 +116,9 @@ npm run start:dev
 ```
 
 It listens on `PORT` or falls back to port `3000`. The API uses the `/api/v1`
-prefix and the competitor CRUD is available under `/api/v1/competitors`.
-Authentication and authorization are not implemented yet.
+prefix. Competitors are available under `/api/v1/competitors`; teams and
+memberships are available under `/api/v1/teams`. Authentication and authorization
+are not implemented yet.
 
 Other existing run scripts:
 
@@ -176,7 +178,8 @@ npm run migration:show
 npm run migration:revert
 ```
 
-The initial competitor schema migration is present. Seeds do not exist. Academic
+The competitor and team/membership schema migrations are present. Seeds do not
+exist. Academic
 demonstration data must eventually include the minimum dataset in
 [Project requirements](docs/project-requirements.md), without embedding real
 credentials. Keycloak demo accounts must be provisioned through a reproducible
@@ -195,10 +198,11 @@ npm run lint
 npm run format
 ```
 
-Unit and PostgreSQL-backed E2E tests cover the implemented competitor module.
-Keycloak and the remaining racing domain are not covered yet. E2E requires an
-isolated database whose name ends in `_test`; the suite applies migrations and may
-clear competitor data. See [Testing](docs/testing.md) for the required matrix.
+Unit and PostgreSQL-backed E2E tests cover the implemented competitor and team
+modules. Keycloak and the remaining racing domain are not covered yet. E2E requires
+an isolated database whose name ends in `_test`; the suite applies migrations and
+may clear competitor, team, and membership data. See
+[Testing](docs/testing.md) for the required matrix.
 
 ## Repository Structure
 
@@ -279,15 +283,15 @@ Current and planned URLs:
 
 ## Known Limitations
 
-- Only the competitor domain module is implemented.
-- Team, race, registration, result, standings, user-profile, and audit behavior is
-  not implemented.
+- Only the competitor and team domain modules are implemented.
+- Race, registration, result, standings, user-profile, and audit behavior is not
+  implemented.
 - Keycloak authentication and authorization are not configured.
 - The current Compose topology includes only NestJS and PostgreSQL; frontend and
   Keycloak containers are pending.
 - The mandatory graphical frontend application is not implemented.
 - No seeds or reproducible demo accounts exist; domain coverage currently includes
-  competitors only.
+  competitors, teams, and historical memberships.
 
 ## Future Improvements
 
