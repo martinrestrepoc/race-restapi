@@ -9,6 +9,7 @@ import { TeamsModule } from './teams/teams.module';
 import { RacesModule } from './races/races.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { ResultsModule } from './results/results.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { ResultsModule } from './results/results.module';
     RacesModule,
     RegistrationsModule,
     ResultsModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],

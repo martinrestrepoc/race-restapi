@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Not, QueryFailedError, Repository } from 'typeorm';
+import { AuditService } from '../audit/audit.service';
 import { RaceStatus } from '../common/enums/race-status.enum';
 import { RegistrationStatus } from '../common/enums/registration-status.enum';
 import { ResultStatus } from '../common/enums/result-status.enum';
@@ -42,6 +43,7 @@ export class ResultsService {
     @InjectRepository(Race)
     private readonly racesRepository: Repository<Race>,
     private readonly dataSource: DataSource,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(raceId: string, dto: CreateResultDto): Promise<RaceResult> {
@@ -180,8 +182,19 @@ export class ResultsService {
             startingPosition: registration.startingPosition,
             recordedByUserProfileId: null,
           });
+        const previousResult = existing ? { ...existing } : null;
         results.merge(result, normalized);
-        return results.save(result);
+        const savedResult = await results.save(result);
+        if (previousResult) {
+          await this.auditService.recordResultCorrected(
+            manager,
+            previousResult,
+            savedResult,
+          );
+        } else {
+          await this.auditService.recordResultCreated(manager, savedResult);
+        }
+        return savedResult;
       });
     } catch (error) {
       if (hasPostgresErrorCode(error, '23505')) {

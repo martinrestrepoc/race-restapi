@@ -9,6 +9,11 @@ import { CreateResultDto } from './dto/create-result.dto';
 import { RaceResult } from './entities/race-result.entity';
 import { ResultsService } from './results.service';
 
+const auditService = {
+  recordResultCreated: jest.fn(),
+  recordResultCorrected: jest.fn(),
+};
+
 const raceId = '1315c17a-44fd-4da6-bffe-a9d85dfa794d';
 const registrationId = '1d73dfe9-2291-49a9-8344-6128cbecf109';
 
@@ -24,6 +29,7 @@ describe('ResultsService', () => {
     resultsRepository as unknown as Repository<RaceResult>,
     racesRepository as unknown as Repository<Race>,
     { transaction } as unknown as DataSource,
+    auditService,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -85,6 +91,45 @@ describe('ResultsService', () => {
 
     expect(result.finalTimeMs).toBe(77500);
     expect(result.startingPosition).toBe(3);
+    expect(auditService.recordResultCreated).toHaveBeenCalledTimes(1);
+  });
+
+  it('records the previous and corrected result in the audit service', async () => {
+    const existingResult = {
+      id: '7b560000-0000-4000-8000-000000000001',
+      raceId,
+      registrationId,
+      startingPosition: 3,
+      status: ResultStatus.FINISHED,
+      finalPosition: 2,
+      rawTimeMs: 80000,
+      penaltyTimeMs: 0,
+      finalTimeMs: 80000,
+      notes: null,
+    } as RaceResult;
+    resultsRepository.findOneBy.mockResolvedValue(existingResult);
+    configureTransaction(
+      { id: raceId, status: RaceStatus.COMPLETED } as Race,
+      {
+        id: registrationId,
+        raceId,
+        status: RegistrationStatus.APPROVED,
+        startingPosition: 3,
+      } as RaceRegistration,
+    );
+
+    await service.update(existingResult.id, {
+      status: ResultStatus.FINISHED,
+      finalPosition: 2,
+      rawTimeMs: 79000,
+      penaltyTimeMs: 0,
+    });
+
+    expect(auditService.recordResultCorrected).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ rawTimeMs: 80000 }),
+      expect.objectContaining({ rawTimeMs: 79000 }),
+    );
   });
 
   it('rejects times and final position for a non-finished result', async () => {
