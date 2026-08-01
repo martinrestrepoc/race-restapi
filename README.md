@@ -7,9 +7,10 @@ The product will combine this backend with a separate graphical frontend, Postgr
 and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
 API over HTTP, and never accesses PostgreSQL directly. This repository is organized
 as a monorepo: the initial NestJS starter lives under `backend/`, while `frontend/`
-is reserved for the React application. Competitor/team persistence and the initial
-backend/PostgreSQL container infrastructure are implemented; identity integration,
-the remaining domain modules, and the frontend application remain pending.
+is reserved for the React application. Competitor, team, race, registration, and
+result persistence plus the initial backend/PostgreSQL container infrastructure are
+implemented; identity integration, standings, the remaining domain modules, and the
+frontend application remain pending.
 
 ## Objective
 
@@ -50,8 +51,13 @@ Current repository state:
 - ESLint and Prettier are configured.
 - TypeORM, the PostgreSQL driver, typed environment validation, global request
   validation, and migration commands are configured.
-- Competitor and team entities, migrations, CRUD, filters, pagination, lifecycle
-  rules, historical memberships, and automated tests are implemented.
+- Competitor, team, race, and registration entities, migrations, CRUD/workflow
+  endpoints, filters, pagination, lifecycle rules, historical memberships, and
+  automated tests are implemented.
+- Race start requires two approved registrations and completion requires a result
+  for every approved participant. Organizer, registration actor, and result recorder
+  attribution will be populated from authenticated identity rather than accepting
+  client-supplied actor identifiers.
 - Keycloak integration is not installed.
 - A multi-stage backend Dockerfile and a Compose stack for NestJS and PostgreSQL
   are configured. Seeds and the frontend application are not present.
@@ -178,8 +184,8 @@ npm run migration:show
 npm run migration:revert
 ```
 
-The competitor and team/membership schema migrations are present. Seeds do not
-exist. Academic
+The competitor, team/membership, race, registration, and result schema migrations
+are present. Seeds do not exist. Academic
 demonstration data must eventually include the minimum dataset in
 [Project requirements](docs/project-requirements.md), without embedding real
 credentials. Keycloak demo accounts must be provisioned through a reproducible
@@ -283,9 +289,9 @@ Current and planned URLs:
 
 ## Known Limitations
 
-- Only the competitor and team domain modules are implemented.
-- Race, registration, result, standings, user-profile, and audit behavior is not
-  implemented.
+- Competitor, team, race, registration, and result behavior is implemented.
+- Standings, user-profile, and audit behavior is not implemented. Official-result
+  corrections therefore do not yet trigger standings recalculation or audit events.
 - Keycloak authentication and authorization are not configured.
 - The current Compose topology includes only NestJS and PostgreSQL; frontend and
   Keycloak containers are pending.

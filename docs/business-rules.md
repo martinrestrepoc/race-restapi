@@ -128,6 +128,9 @@ states remain `Decision pending`.
   `IN_PROGRESS`.
 - A finished result requires positive raw time and a unique finishing position.
 - Raw, penalty, and final time use integer milliseconds.
+- Final time is calculated by the backend as raw time plus penalty time.
+- Non-finished outcomes have no raw time, final time, or final position and use a
+  zero penalty time.
 - The winner has the lowest final time; a disqualified participant cannot win.
 - Completing a race makes its results official.
 - Administrators and race organizers may correct official results after completion.
@@ -144,7 +147,7 @@ states remain `Decision pending`.
 - Individual order is total points, wins, second places, completed races, then best
   final time.
 - Team standings use only races where the team was directly registered.
-- The final-time formula and handling of equal final times remain pending.
+- Equal final times remain `Decision pending` for standings tie-breaking.
 
 ## Audit Logs
 

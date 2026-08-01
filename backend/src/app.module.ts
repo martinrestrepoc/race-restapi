@@ -6,6 +6,9 @@ import { CompetitorsModule } from './competitors/competitors.module';
 import { validateEnvironment } from './config/environment.validation';
 import { DatabaseModule } from './database/database.module';
 import { TeamsModule } from './teams/teams.module';
+import { RacesModule } from './races/races.module';
+import { RegistrationsModule } from './registrations/registrations.module';
+import { ResultsModule } from './results/results.module';
 
 @Module({
   imports: [
@@ -17,6 +20,9 @@ import { TeamsModule } from './teams/teams.module';
     DatabaseModule,
     CompetitorsModule,
     TeamsModule,
+    RacesModule,
+    RegistrationsModule,
+    ResultsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

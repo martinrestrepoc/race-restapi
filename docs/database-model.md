@@ -292,8 +292,8 @@ PostgreSQL the owner of credentials.
 - **Relationships:** race, approved registration, recorder `UserProfile`.
 - **Constraints:** one result per race participant; unique normal-finisher position;
   one official winner; disqualified participant cannot win.
-- **Nullability:** final position/completion time for non-finish outcomes is
-  `Decision pending`; notes may be null.
+- **Nullability:** non-finish outcomes have null raw time, final time, and final
+  position; notes may be null. Their penalty time is zero.
 - **Indexes:** race/status/final position; unique registration result.
 - **Deletion:** results are corrected rather than deleted; corrections are audited.
 - **Audit fields:** recorded/updated timestamps and recorder.
@@ -337,4 +337,7 @@ team row is locked. The corresponding strategy for registrations and results is
   PostgreSQL application seeds.
 - Do not place real credentials in migrations, seeds, or realm exports.
 
-Competitor and team/membership migrations exist. Seeds do not currently exist.
+Competitor, team/membership, race, registration, and result migrations exist. Race
+organizer, registration actor, and result recorder columns are temporarily nullable
+until authenticated local user profiles are introduced; the API does not accept
+client-supplied actor identities. Seeds do not currently exist.

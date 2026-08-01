@@ -256,6 +256,9 @@ Empty results use `totalPages: 0`.
 - Distance is expressed in meters.
 - Weight is kilograms, height is centimeters, and raw/penalty/final time is integer milliseconds and
   must be encoded in field names or documented unambiguously before implementation.
+- `finalTimeMs` is calculated by the backend as `rawTimeMs + penaltyTimeMs` and is
+  never accepted as an input field. Non-finished results use null raw/final time
+  and final position values.
 
 ## Success Representations
 
