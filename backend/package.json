@@ -86,8 +86,22 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "**/*.ts",
+      "!**/*.spec.ts",
+      "!**/*.module.ts",
+      "!database/migrations/**",
+      "!database/typeorm.datasource.ts",
+      "!main.ts",
+      "!configure-application.ts"
     ],
+    "coverageThreshold": {
+      "global": {
+        "statements": 75,
+        "branches": 65,
+        "functions": 45,
+        "lines": 75
+      }
+    },
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
   }

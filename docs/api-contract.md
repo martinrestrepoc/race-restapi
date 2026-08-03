@@ -9,8 +9,8 @@ same topic. Their acceptance does not imply implementation.
 ## Status and Scope
 
 Competitor, team/membership, race, registration, result, and current-user profile
-endpoints and administrator audit queries are implemented. Standings and
-administrative profile management remain proposed. Business constraints remain authoritative in
+endpoints, administrative profile management, and administrator audit queries are
+implemented. Standings remain proposed. Business constraints remain authoritative in
 [Business rules](business-rules.md). Identity and token endpoints belong to Keycloak,
 not this API.
 
@@ -103,16 +103,19 @@ The tables define the proposed surface, not implemented behavior.
 
 ### Users
 
-| Method and path                  | Purpose                                 | Minimum role  |
-| -------------------------------- | --------------------------------------- | ------------- |
-| `GET /api/v1/users/me`           | Read current local profile              | Authenticated |
-| `GET /api/v1/users`              | List application-visible users          | Admin         |
-| `GET /api/v1/users/:id`          | Read application-visible user profile   | Admin         |
-| `PATCH /api/v1/users/:id/status` | Change local profile status, if adopted | Admin         |
+| Method and path                  | Purpose                               | Minimum role  |
+| -------------------------------- | ------------------------------------- | ------------- |
+| `GET /api/v1/users/me`           | Read current local profile            | Authenticated |
+| `GET /api/v1/users`              | List application-visible users        | Admin         |
+| `GET /api/v1/users/:id`          | Read application-visible user profile | Admin         |
+| `PATCH /api/v1/users/:id/status` | Change local profile status           | Admin         |
 
 The initial version has no Keycloak Admin API facade. Local profile statuses are
-`ACTIVE` and `DISABLED`. Only `GET /users/me` is currently implemented; the listed
-administrative profile operations remain proposed.
+`ACTIVE` and `DISABLED`. The administrative collection accepts `status`, `search`,
+`sortBy`, `sortOrder`, `page`, and `limit`. Search covers display name and email
+snapshot. An administrator cannot disable their own active profile through the API.
+Status changes are serialized, audited, and return `409` when the target already
+has the requested status.
 
 ### Competitors
 

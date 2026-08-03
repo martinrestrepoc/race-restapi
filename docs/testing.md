@@ -11,12 +11,30 @@ same topic. Their acceptance does not imply implementation.
 Jest, `@nestjs/testing`, and Supertest are installed. Unit tests cover the current
 domain rules and the role policy metadata for every implemented controller. E2E
 tests apply real migrations to isolated PostgreSQL and cover the current CRUD
-workflows. A dedicated security suite uses disposable RSA keys and a local JWKS
+workflows, the complete race lifecycle through official result correction,
+concurrent duplicate registration, deadlines, eligibility, winner/completion
+conflicts, actor attribution, and multi-role authorization. A dedicated security
+suite uses disposable RSA keys and a local JWKS
 server to verify signature, issuer, audience, expiration, token type, role denial,
 and `401` versus `403`. Unit and PostgreSQL-backed E2E tests cover lazy local-profile
 provisioning, idempotency, disabled-profile behavior, actor propagation, audit
 filter/detail reads, and administrator-only audit authorization. Seed tests remain
-pending.
+pending. Profile-administration E2E coverage verifies filtering, detail reads,
+transactional status audit, viewer denial, and administrator self-disable
+prevention.
+
+The current unit suite contains 85 tests. Its production-code coverage is 81.40%
+of statements, 70.52% of branches, 54.66% of functions, and 81.57% of lines.
+Coverage deliberately excludes tests, NestJS module wiring, migrations, the
+TypeORM CLI data source, and application bootstrap files. Global minimums enforced
+by Jest are 75% statements, 65% branches, 45% functions, and 75% lines. The 21 E2E
+tests and 9 dedicated security tests run as separate suites and are not combined
+into these instrumentation percentages.
+
+The 15 mandatory academic scenarios are represented across unit, PostgreSQL-backed
+E2E, and dedicated JWT/JWKS suites. Rules intentionally left as `Decision pending`,
+including the official standings points table and equal-time policy, are not encoded
+as invented expectations.
 
 The target suite must contain at least 15 meaningful automated tests. Getter/setter
 tests do not count.
@@ -222,6 +240,7 @@ npm run test:watch
 npm run test:cov
 npm run test:debug
 npm run test:e2e
+npm run test:security
 npm run lint
 npm run format
 npm run migration:run

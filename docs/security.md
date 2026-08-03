@@ -20,6 +20,13 @@ the role matrix and reject locally disabled profiles. Race, registration, result
 and domain audit writes use the authenticated local-profile identifier. Complete
 audit-log list/detail reads are restricted to `ADMINISTRATOR`.
 
+Administrative profile list/detail/status operations are also restricted to
+`ADMINISTRATOR` and require an active local profile. Status changes use a row lock,
+are audited in the same transaction, and reject self-disable to prevent an
+administrator from locking themselves out. These operations manage only local
+application access; they do not modify the Keycloak account, credentials, sessions,
+or roles.
+
 ## Responsibility Boundary
 
 ### Keycloak

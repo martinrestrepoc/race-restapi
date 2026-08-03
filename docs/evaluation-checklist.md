@@ -107,16 +107,16 @@ are intentionally maintained only here.
 
 ## Automated Testing
 
-- [ ] At least the 15 mandatory scenarios in [Testing](testing.md) pass.
-- [ ] Tests are meaningful and do not focus on getters/setters.
-- [ ] Unit tests cover service rules and transitions.
-- [ ] Integration tests use isolated PostgreSQL and actual migrations.
-- [ ] E2E tests exercise the REST API with Supertest.
-- [ ] Security tests cover invalid/expired/wrong-issuer/wrong-audience/valid tokens.
-- [ ] Authorization tests do not bypass role guards.
-- [ ] Tests distinguish `401` from `403`.
-- [ ] Tests do not use production PostgreSQL or production Keycloak.
-- [ ] Test state is isolated and independent of execution order.
+- [x] At least the 15 mandatory scenarios in [Testing](testing.md) pass.
+- [x] Tests are meaningful and do not focus on getters/setters.
+- [x] Unit tests cover service rules and transitions.
+- [x] Integration tests use isolated PostgreSQL and actual migrations.
+- [x] E2E tests exercise the REST API with Supertest.
+- [x] Security tests cover invalid/expired/wrong-issuer/wrong-audience/valid tokens.
+- [x] Authorization tests do not bypass role guards.
+- [x] Tests distinguish `401` from `403`.
+- [x] Tests do not use production PostgreSQL or production Keycloak.
+- [x] Test state is isolated and independent of execution order.
 
 ## Documentation, GitHub, and Team
 
@@ -176,6 +176,8 @@ At documentation creation time:
 - [x] Competitor and team/membership migrations exist; seeds remain pending.
 - [x] Local-profile provisioning, status enforcement, and authenticated actor
       attribution exist.
+- [x] Administrators can list profiles and manage local status without changing
+      Keycloak-owned identity data.
 - [x] Audit events are append-only and complete audit reads are restricted to
       administrators.
 - [x] Keycloak integration/realm configuration exists.
@@ -184,5 +186,7 @@ At documentation creation time:
       currently only a placeholder).
 - [x] Competitor/team unit and database-backed E2E coverage exists, with dedicated
       JWT/JWKS security and controller-policy tests.
+- [x] Race, registration, result, correction, audit, and multi-role workflows have
+      PostgreSQL-backed E2E coverage.
 
 This baseline is informational and must be updated as implementation progresses.

@@ -7,6 +7,7 @@ import { configureApplication } from '../src/configure-application';
 import { UserProfile } from '../src/users/entities/user-profile.entity';
 import { UserProfileStatus } from '../src/users/enums/user-profile-status.enum';
 import { createAuthenticatedTestingModule } from './authenticated-testing-module';
+import { AppRole } from '../src/auth/enums/app-role.enum';
 
 interface UserProfileBody {
   id: string;
@@ -18,9 +19,29 @@ interface UserProfileBody {
   updatedAt: string;
 }
 
+interface UserProfileListBody {
+  items: UserProfileBody[];
+  page: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+}
+
+interface AuditListBody {
+  items: Array<{
+    actorUserProfileId: string;
+    action: string;
+    entityId: string;
+    previousValues: Record<string, unknown> | null;
+    newValues: Record<string, unknown> | null;
+  }>;
+  totalItems: number;
+}
+
 describe('User profiles (e2e)', () => {
   const keycloakUserId = 'user-profile-e2e-subject';
   let app: INestApplication<App>;
+  let viewerApp: INestApplication<App>;
   let dataSource: DataSource;
 
   beforeAll(async () => {
@@ -40,6 +61,15 @@ describe('User profiles (e2e)', () => {
 
     dataSource = app.get(DataSource);
     await dataSource.runMigrations();
+
+    const viewerModule = await createAuthenticatedTestingModule({
+      sub: 'user-profile-viewer-e2e-subject',
+      username: 'profile-viewer',
+      roles: [AppRole.VIEWER],
+    });
+    viewerApp = viewerModule.createNestApplication();
+    configureApplication(viewerApp);
+    await viewerApp.init();
   });
 
   beforeEach(async () => {
@@ -54,6 +84,7 @@ describe('User profiles (e2e)', () => {
         'TRUNCATE TABLE user_profiles RESTART IDENTITY CASCADE',
       );
     }
+    if (viewerApp) await viewerApp.close();
     if (app) await app.close();
   });
 
@@ -107,6 +138,85 @@ describe('User profiles (e2e)', () => {
       statusCode: 403,
       error: 'Forbidden',
       message: 'User profile is disabled',
+    });
+  });
+
+  it('lets an administrator list, inspect and disable another profile', async () => {
+    const administrator = (
+      await request(app.getHttpServer()).get('/api/v1/users/me').expect(200)
+    ).body as UserProfileBody;
+    const viewer = (
+      await request(viewerApp.getHttpServer())
+        .get('/api/v1/users/me')
+        .expect(200)
+    ).body as UserProfileBody;
+
+    const listResponse = await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .query({
+        status: UserProfileStatus.ACTIVE,
+        sortBy: 'displayName',
+        sortOrder: 'asc',
+        page: 1,
+        limit: 10,
+      })
+      .expect(200);
+    const list = listResponse.body as UserProfileListBody;
+    expect(list).toMatchObject({
+      page: 1,
+      limit: 10,
+      totalItems: 2,
+      totalPages: 1,
+    });
+    expect(list.items.map((profile) => profile.id)).toContain(viewer.id);
+
+    const detail = await request(app.getHttpServer())
+      .get(`/api/v1/users/${viewer.id}`)
+      .expect(200);
+    expect((detail.body as UserProfileBody).keycloakUserId).toBe(
+      viewer.keycloakUserId,
+    );
+
+    const changed = await request(app.getHttpServer())
+      .patch(`/api/v1/users/${viewer.id}/status`)
+      .send({ status: UserProfileStatus.DISABLED })
+      .expect(200);
+    expect((changed.body as UserProfileBody).status).toBe(
+      UserProfileStatus.DISABLED,
+    );
+
+    const auditResponse = await request(app.getHttpServer())
+      .get('/api/v1/audit-logs')
+      .query({
+        action: 'USER_PROFILE_STATUS_CHANGED',
+        entityId: viewer.id,
+      })
+      .expect(200);
+    const audit = auditResponse.body as AuditListBody;
+    expect(audit.totalItems).toBe(1);
+    expect(audit.items[0]).toMatchObject({
+      actorUserProfileId: administrator.id,
+      entityId: viewer.id,
+      previousValues: { status: UserProfileStatus.ACTIVE },
+      newValues: { status: UserProfileStatus.DISABLED },
+    });
+  });
+
+  it('prevents viewer administration and administrator self-disable', async () => {
+    const administrator = (
+      await request(app.getHttpServer()).get('/api/v1/users/me').expect(200)
+    ).body as UserProfileBody;
+
+    await request(viewerApp.getHttpServer()).get('/api/v1/users').expect(403);
+
+    const response = await request(app.getHttpServer())
+      .patch(`/api/v1/users/${administrator.id}/status`)
+      .send({ status: UserProfileStatus.DISABLED })
+      .expect(409);
+    expect(response.body).toMatchObject({
+      statusCode: 409,
+      error: 'Conflict',
+      message: 'Administrators cannot disable their own active profile',
     });
   });
 });

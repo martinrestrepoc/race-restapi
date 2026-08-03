@@ -10,7 +10,7 @@ relevant unit, integration, and E2E tests are present.
    PostgreSQL/TypeORM, reviewed migrations, Docker Compose, `/api/v1`, global
    validation, uniform errors, pagination, and a disposable E2E database topology
    are present. Seeds remain pending.
-2. **Security, local profiles, and authenticated audit actors — implemented core.**
+2. **Security, local profiles, and authenticated audit actors — implemented.**
    Compatible Passport JWT/JWKS dependencies and typed Keycloak configuration are
    present. Persistent Keycloak infrastructure, the API/frontend clients, client
    roles, PKCE, audience mapping, and three demo identities are reproducible through
@@ -18,7 +18,8 @@ relevant unit, integration, and E2E tests are present.
    role guards, `/auth/me`, lazy `UserProfile` provisioning, `/users/me`, active
    profile enforcement, and authenticated actor attribution are implemented.
    Domain-controller role policies are applied across competitors, teams, races,
-   registrations, and results. Administrative profile management remains pending.
+   registrations, and results. Administrator profile list/detail/status management
+   is implemented with audit and self-disable protection.
 3. **Competitors — functional core implemented.** CRUD, lifecycle, history-aware
    deletion, migration, DTOs, unit tests, PostgreSQL E2E tests, and administrator
    mutation/read-role enforcement, and authenticated audit events exist.
@@ -27,21 +28,26 @@ relevant unit, integration, and E2E tests are present.
    tests, PostgreSQL E2E tests, role enforcement, and mutation audit events exist.
 5. **Races — functional core implemented.** Draft editing, lifecycle rules,
    migration, DTOs, service/controller, unit tests, and role enforcement exist.
-   Mutation audit events exist; PostgreSQL E2E coverage remains pending.
+   Mutation audit events and PostgreSQL-backed workflow E2E coverage exist.
 6. **Registrations — functional core implemented.** Eligibility, lifecycle,
    race-serialized creation, atomic approval capacity/starting-position checks,
    migration, unit tests, role enforcement, authenticated performer attribution,
-   and audit events exist. PostgreSQL E2E coverage remains pending.
+   audit events, and PostgreSQL-backed workflow/concurrency E2E coverage exist.
 7. **Results — functional core implemented.** Integer-millisecond final-time
    calculation, official correction, transactional audit writes, constraints, and
    unit tests, role enforcement, and authenticated result/audit actors exist.
-   Standings recalculation and PostgreSQL E2E coverage remain pending.
+   PostgreSQL-backed workflow/correction E2E coverage exists. Standings
+   recalculation remains pending.
 8. **Standings and audit queries — partially implemented.** The paginated,
    filterable, administrator-only audit list/detail API is implemented. Standings
    endpoints remain pending.
+9. **Quality hardening — implemented.** Coverage now measures production TypeScript
+   rather than migrations and framework wiring, global anti-regression thresholds
+   are enforced, and registration transitions, audit queries, and profile
+   administration have expanded unit coverage. The complete unit, E2E, and JWT/JWKS
+   security suites are maintained independently.
 
 ## Next Increment
 
 Implement standings once the official points table and tie policy are resolved;
-otherwise, the next safe increment is administrative local-profile status
-management or missing PostgreSQL E2E coverage for races/registrations/results.
+until then, the next safe increment is reproducible domain seeds or frontend work.

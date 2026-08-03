@@ -6,6 +6,7 @@ import { RacesController } from '../races/races.controller';
 import { RegistrationsController } from '../registrations/registrations.controller';
 import { ResultsController } from '../results/results.controller';
 import { AuditController } from '../audit/audit.controller';
+import { UsersController } from '../users/users.controller';
 
 function controllerRoles(controller: object): AppRole[] | undefined {
   return Reflect.getMetadata(ROLES_KEY, controller) as AppRole[] | undefined;
@@ -84,5 +85,15 @@ describe('Domain authorization policies', () => {
 
   it('restricts complete audit-log access to administrators', () => {
     expect(controllerRoles(AuditController)).toEqual(administrator);
+  });
+
+  it('allows own-profile reads but restricts profile administration', () => {
+    const prototype = UsersController.prototype;
+
+    expect(controllerRoles(UsersController)).toEqual(readRoles);
+    expect(handlerRoles(prototype, 'getMe')).toBeUndefined();
+    expect(handlerRoles(prototype, 'findAll')).toEqual(administrator);
+    expect(handlerRoles(prototype, 'findOne')).toEqual(administrator);
+    expect(handlerRoles(prototype, 'updateStatus')).toEqual(administrator);
   });
 });

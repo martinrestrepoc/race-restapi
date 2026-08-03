@@ -12,7 +12,8 @@ result persistence plus the backend/PostgreSQL/Keycloak container infrastructure
 are implemented. NestJS now validates Keycloak access tokens and exposes a protected
 identity endpoints; domain-wide role policies, lazy local profiles, authenticated
 actor attribution, mutation audit events, and administrator audit queries are
-implemented. Standings, domain seeds, and the frontend application remain pending.
+implemented. Administrators can also list profiles and manage their local status.
+Standings, domain seeds, and the frontend application remain pending.
 
 ## Objective
 
@@ -222,10 +223,14 @@ npm run lint
 npm run format
 ```
 
-Unit and PostgreSQL-backed E2E tests cover the implemented domain modules. The
+Unit and PostgreSQL-backed E2E tests cover the implemented domain modules,
+including the complete race/registration/result workflow, concurrent duplicate
+registration, result correction, audit attribution, and role boundaries. The
 security suite uses disposable RSA keys and a local JWKS issuer to cover signature,
 issuer, audience, expiration, token type, role, `401`, and `403` behavior without
-bypassing guards. E2E requires
+bypassing guards. The unit suite currently has 85 tests and enforces global coverage
+minimums of 75% statements, 65% branches, 45% functions, and 75% lines; E2E and
+security suites remain separate from that measurement. E2E requires
 an isolated database whose name ends in `_test`; the suite applies migrations and
 may clear competitor, team, and membership data. See
 [Testing](docs/testing.md) for the required matrix.
@@ -348,8 +353,8 @@ Current and planned URLs:
   mutations to competitors, teams/memberships, races, registrations, and results;
   administrators can query them through `/api/v1/audit-logs`.
 - Token validation, documented role policies, and active-profile checks protect all
-  implemented domain controllers. Audit reads are administrator-only;
-  administrative profile listing/status endpoints remain pending.
+  implemented domain controllers. Audit reads and profile administration are
+  administrator-only.
 - The current Compose topology includes NestJS, PostgreSQL, and Keycloak; the
   frontend container is pending.
 - The mandatory graphical frontend application is not implemented.
