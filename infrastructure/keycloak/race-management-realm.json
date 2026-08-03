@@ -1,0 +1,142 @@
+{
+  "realm": "race-management",
+  "displayName": "Great EIA Racing",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": true,
+  "rememberMe": true,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "clients": [
+    {
+      "clientId": "race-backend",
+      "name": "Race Management API",
+      "description": "OAuth 2.0 resource server for the racing REST API",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "bearerOnly": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false
+    },
+    {
+      "clientId": "race-frontend",
+      "name": "Race Management Frontend",
+      "description": "Public browser client using Authorization Code Flow with PKCE",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:5173",
+      "baseUrl": "http://localhost:5173",
+      "redirectUris": ["http://localhost:5173/*"],
+      "webOrigins": ["http://localhost:5173"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocolMappers": [
+        {
+          "name": "race-backend-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "race-backend",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "lightweight.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "roles": {
+    "realm": [],
+    "client": {
+      "race-backend": [
+        {
+          "name": "ADMINISTRATOR",
+          "description": "Full administration of racing and audit resources",
+          "composite": false,
+          "clientRole": true
+        },
+        {
+          "name": "RACE_ORGANIZER",
+          "description": "Management of races, registrations, and results",
+          "composite": false,
+          "clientRole": true
+        },
+        {
+          "name": "VIEWER",
+          "description": "Read-only access to public racing information",
+          "composite": false,
+          "clientRole": true
+        }
+      ]
+    }
+  },
+  "users": [
+    {
+      "username": "race-admin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ada",
+      "lastName": "Administrator",
+      "email": "race-admin@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KEYCLOAK_DEMO_ADMIN_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "race-backend": ["ADMINISTRATOR"]
+      }
+    },
+    {
+      "username": "race-organizer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Orin",
+      "lastName": "Organizer",
+      "email": "race-organizer@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KEYCLOAK_DEMO_ORGANIZER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "race-backend": ["RACE_ORGANIZER"]
+      }
+    },
+    {
+      "username": "race-viewer",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Vera",
+      "lastName": "Viewer",
+      "email": "race-viewer@example.invalid",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "${KEYCLOAK_DEMO_VIEWER_PASSWORD}",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "race-backend": ["VIEWER"]
+      }
+    }
+  ]
+}

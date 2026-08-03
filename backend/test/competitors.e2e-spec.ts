@@ -1,12 +1,12 @@
 import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
 import { CompetitorStatus } from '../src/common/enums/competitor-status.enum';
 import { CompetitorType } from '../src/common/enums/competitor-type.enum';
 import { configureApplication } from '../src/configure-application';
+import { createAuthenticatedTestingModule } from './authenticated-testing-module';
 
 interface CompetitorBody {
   id: string;
@@ -64,9 +64,8 @@ describe('Competitors (e2e)', () => {
       );
     }
 
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const moduleFixture: TestingModule =
+      await createAuthenticatedTestingModule();
 
     app = moduleFixture.createNestApplication();
     configureApplication(app);
@@ -83,7 +82,9 @@ describe('Competitors (e2e)', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    if (app) {
+      await app.close();
+    }
   });
 
   it('creates, retrieves and paginates a competitor', async () => {

@@ -15,6 +15,7 @@ import { TeamQueryDto } from './dto/team-query.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamMember } from './entities/team-member.entity';
 import { Team } from './entities/team.entity';
+import { AuditService } from '../audit/audit.service';
 
 export interface TeamListResult {
   items: Team[];
@@ -50,17 +51,27 @@ export class TeamsService {
     private readonly teamMembersRepository: Repository<TeamMember>,
     private readonly dataSource: DataSource,
     configService: ConfigService<EnvironmentVariables, true>,
+    private readonly auditService: AuditService,
   ) {
     this.maximumMembers = configService.getOrThrow<number>('TEAM_MAX_MEMBERS');
   }
 
-  async create(dto: CreateTeamDto): Promise<Team> {
+  async create(dto: CreateTeamDto, actorUserProfileId: string): Promise<Team> {
     const team = this.teamsRepository.create({
       ...dto,
       description: dto.description ?? null,
     });
 
-    return this.save(team);
+    const saved = await this.save(team);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'TEAM_CREATED',
+      entityType: 'TEAM',
+      entityId: saved.id,
+      description: 'Team created',
+      newValues: this.teamSnapshot(saved),
+    });
+    return saved;
   }
 
   async findAll(query: TeamQueryDto): Promise<TeamListResult> {
@@ -112,18 +123,38 @@ export class TeamsService {
     return team;
   }
 
-  async update(id: string, dto: UpdateTeamDto): Promise<Team> {
+  async update(
+    id: string,
+    dto: UpdateTeamDto,
+    actorUserProfileId: string,
+  ): Promise<Team> {
     const team = await this.findOne(id);
+    const previousValues = this.teamSnapshot(team);
     this.teamsRepository.merge(team, {
       ...dto,
       description: dto.description ?? null,
     });
 
-    return this.save(team);
+    const saved = await this.save(team);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'TEAM_UPDATED',
+      entityType: 'TEAM',
+      entityId: saved.id,
+      description: 'Team updated',
+      previousValues,
+      newValues: this.teamSnapshot(saved),
+    });
+    return saved;
   }
 
-  async updateStatus(id: string, targetStatus: TeamStatus): Promise<Team> {
+  async updateStatus(
+    id: string,
+    targetStatus: TeamStatus,
+    actorUserProfileId: string,
+  ): Promise<Team> {
     const team = await this.findOne(id);
+    const previousValues = this.teamSnapshot(team);
 
     if (team.status === targetStatus) {
       throw new ConflictException(
@@ -132,11 +163,22 @@ export class TeamsService {
     }
 
     team.status = targetStatus;
-    return this.teamsRepository.save(team);
+    const saved = await this.teamsRepository.save(team);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'TEAM_STATUS_CHANGED',
+      entityType: 'TEAM',
+      entityId: saved.id,
+      description: 'Team status changed',
+      previousValues,
+      newValues: this.teamSnapshot(saved),
+    });
+    return saved;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorUserProfileId: string): Promise<void> {
     const team = await this.findOne(id);
+    const previousValues = this.teamSnapshot(team);
     const hasMembershipHistory = await this.teamMembersRepository.exists({
       where: { teamId: id },
     });
@@ -146,13 +188,34 @@ export class TeamsService {
         team.status = TeamStatus.INACTIVE;
         await this.teamsRepository.save(team);
       }
+      await this.auditService.recordEvent({
+        actorUserProfileId,
+        action: 'TEAM_DEACTIVATED',
+        entityType: 'TEAM',
+        entityId: team.id,
+        description: 'Team deactivated because membership history is preserved',
+        previousValues,
+        newValues: this.teamSnapshot(team),
+      });
       return;
     }
 
     await this.teamsRepository.remove(team);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'TEAM_DELETED',
+      entityType: 'TEAM',
+      entityId: id,
+      description: 'Team physically deleted without membership history',
+      previousValues,
+    });
   }
 
-  async addMember(teamId: string, competitorId: string): Promise<TeamMember> {
+  async addMember(
+    teamId: string,
+    competitorId: string,
+    actorUserProfileId: string,
+  ): Promise<TeamMember> {
     try {
       return await this.dataSource.transaction(async (manager) => {
         const teamsRepository = manager.getRepository(Team);
@@ -210,7 +273,19 @@ export class TeamsService {
           leftAt: null,
         });
 
-        return membersRepository.save(member);
+        const saved = await membersRepository.save(member);
+        await this.auditService.recordEvent(
+          {
+            actorUserProfileId,
+            action: 'TEAM_MEMBER_ADDED',
+            entityType: 'TEAM_MEMBER',
+            entityId: saved.id,
+            description: 'Competitor added to team',
+            newValues: this.memberSnapshot(saved),
+          },
+          manager,
+        );
+        return saved;
       });
     } catch (error) {
       if (hasPostgresErrorCode(error, '23505')) {
@@ -223,7 +298,11 @@ export class TeamsService {
     }
   }
 
-  async removeMember(teamId: string, competitorId: string): Promise<void> {
+  async removeMember(
+    teamId: string,
+    competitorId: string,
+    actorUserProfileId: string,
+  ): Promise<void> {
     await this.dataSource.transaction(async (manager) => {
       const teamsRepository = manager.getRepository(Team);
       const membersRepository = manager.getRepository(TeamMember);
@@ -245,6 +324,21 @@ export class TeamsService {
 
       membership.leftAt = new Date();
       await membersRepository.save(membership);
+      await this.auditService.recordEvent(
+        {
+          actorUserProfileId,
+          action: 'TEAM_MEMBER_REMOVED',
+          entityType: 'TEAM_MEMBER',
+          entityId: membership.id,
+          description: 'Competitor removed from team',
+          previousValues: {
+            ...this.memberSnapshot(membership),
+            leftAt: null,
+          },
+          newValues: this.memberSnapshot(membership),
+        },
+        manager,
+      );
     });
   }
 
@@ -258,5 +352,23 @@ export class TeamsService {
 
       throw error;
     }
+  }
+
+  private teamSnapshot(team: Team): Record<string, unknown> {
+    return {
+      name: team.name,
+      description: team.description,
+      responsiblePerson: team.responsiblePerson,
+      status: team.status,
+    };
+  }
+
+  private memberSnapshot(member: TeamMember): Record<string, unknown> {
+    return {
+      teamId: member.teamId,
+      competitorId: member.competitorId,
+      joinedAt: member.joinedAt,
+      leftAt: member.leftAt,
+    };
   }
 }

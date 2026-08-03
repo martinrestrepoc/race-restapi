@@ -15,6 +15,8 @@ import { Race } from './entities/race.entity';
 import { RaceRegistration } from '../registrations/entities/race-registration.entity';
 import { RegistrationStatus } from '../common/enums/registration-status.enum';
 import { RaceResult } from '../results/entities/race-result.entity';
+import { ClockService } from '../common/time/clock.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface RaceListResult {
   items: Race[];
@@ -42,9 +44,14 @@ export class RacesService {
     private readonly registrationsRepository: Repository<RaceRegistration>,
     @InjectRepository(RaceResult)
     private readonly resultsRepository: Repository<RaceResult>,
+    private readonly clock: ClockService,
+    private readonly auditService: AuditService,
   ) {}
 
-  async create(dto: CreateRaceDto): Promise<Race> {
+  async create(
+    dto: CreateRaceDto,
+    organizerUserProfileId: string,
+  ): Promise<Race> {
     this.validateSchedule(dto.scheduledAt, dto.registrationDeadline, true);
     const race = this.racesRepository.create({
       ...dto,
@@ -52,9 +59,18 @@ export class RacesService {
       scheduledAt: new Date(dto.scheduledAt),
       registrationDeadline: new Date(dto.registrationDeadline),
       status: RaceStatus.DRAFT,
-      organizerUserProfileId: null,
+      organizerUserProfileId,
     });
-    return this.racesRepository.save(race);
+    const saved = await this.racesRepository.save(race);
+    await this.auditService.recordEvent({
+      actorUserProfileId: organizerUserProfileId,
+      action: 'RACE_CREATED',
+      entityType: 'RACE',
+      entityId: saved.id,
+      description: 'Race created',
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
   async findAll(query: RaceQueryDto): Promise<RaceListResult> {
@@ -100,16 +116,18 @@ export class RacesService {
     return race;
   }
 
-  async update(id: string, dto: UpdateRaceDto): Promise<Race> {
+  async update(
+    id: string,
+    dto: UpdateRaceDto,
+    actorUserProfileId: string,
+  ): Promise<Race> {
     const race = await this.findOne(id);
-    if (
-      race.status === RaceStatus.COMPLETED ||
-      race.status === RaceStatus.CANCELLED
-    ) {
+    if (race.status !== RaceStatus.DRAFT) {
       throw new ConflictException(
         `Race in status ${race.status} cannot be edited`,
       );
     }
+    const previousValues = this.snapshot(race);
     this.validateSchedule(dto.scheduledAt, dto.registrationDeadline, false);
     this.racesRepository.merge(race, {
       ...dto,
@@ -117,11 +135,26 @@ export class RacesService {
       scheduledAt: new Date(dto.scheduledAt),
       registrationDeadline: new Date(dto.registrationDeadline),
     });
-    return this.racesRepository.save(race);
+    const saved = await this.racesRepository.save(race);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'RACE_UPDATED',
+      entityType: 'RACE',
+      entityId: saved.id,
+      description: 'Race draft updated',
+      previousValues,
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
-  async updateStatus(id: string, targetStatus: RaceStatus): Promise<Race> {
+  async updateStatus(
+    id: string,
+    targetStatus: RaceStatus,
+    actorUserProfileId: string,
+  ): Promise<Race> {
     const race = await this.findOne(id);
+    const previousValues = this.snapshot(race);
     if (!allowedStatusTransitions[race.status].includes(targetStatus)) {
       throw new ConflictException(
         `Race status cannot transition from ${race.status} to ${targetStatus}`,
@@ -161,16 +194,38 @@ export class RacesService {
       }
     }
     race.status = targetStatus;
-    return this.racesRepository.save(race);
+    const saved = await this.racesRepository.save(race);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action:
+        targetStatus === RaceStatus.CANCELLED
+          ? 'RACE_CANCELLED'
+          : 'RACE_STATUS_CHANGED',
+      entityType: 'RACE',
+      entityId: saved.id,
+      description: 'Race status changed',
+      previousValues,
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorUserProfileId: string): Promise<void> {
     const race = await this.findOne(id);
+    const previousValues = this.snapshot(race);
     const hasRegistrations = await this.registrationsRepository.exists({
       where: { raceId: id },
     });
     if (race.status === RaceStatus.DRAFT && !hasRegistrations) {
       await this.racesRepository.remove(race);
+      await this.auditService.recordEvent({
+        actorUserProfileId,
+        action: 'RACE_DELETED',
+        entityType: 'RACE',
+        entityId: id,
+        description: 'Draft race physically deleted without registrations',
+        previousValues,
+      });
       return;
     }
     if (
@@ -183,6 +238,15 @@ export class RacesService {
     }
     race.status = RaceStatus.CANCELLED;
     await this.racesRepository.save(race);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'RACE_CANCELLED',
+      entityType: 'RACE',
+      entityId: race.id,
+      description: 'Race cancelled instead of deleted to preserve history',
+      previousValues,
+      newValues: this.snapshot(race),
+    });
   }
 
   private validateSchedule(
@@ -192,7 +256,10 @@ export class RacesService {
   ): void {
     const scheduledAt = new Date(scheduledAtValue);
     const deadline = new Date(deadlineValue);
-    if (requireFutureStart && scheduledAt.getTime() <= Date.now()) {
+    if (
+      requireFutureStart &&
+      scheduledAt.getTime() <= this.clock.now().getTime()
+    ) {
       throw new BadRequestException('scheduledAt must be in the future');
     }
     if (deadline.getTime() >= scheduledAt.getTime()) {
@@ -200,5 +267,21 @@ export class RacesService {
         'registrationDeadline must be earlier than scheduledAt',
       );
     }
+  }
+
+  private snapshot(race: Race): Record<string, unknown> {
+    return {
+      name: race.name,
+      description: race.description,
+      scheduledAt: race.scheduledAt,
+      startLocation: race.startLocation,
+      finishLocation: race.finishLocation,
+      distanceMeters: race.distanceMeters,
+      maxParticipants: race.maxParticipants,
+      type: race.type,
+      status: race.status,
+      registrationDeadline: race.registrationDeadline,
+      organizerUserProfileId: race.organizerUserProfileId,
+    };
   }
 }

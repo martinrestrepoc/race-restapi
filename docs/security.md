@@ -12,8 +12,13 @@ Keycloak is the central identity provider. NestJS is a protected OAuth 2.0 resou
 server that validates Keycloak-issued access tokens and enforces both role and
 domain authorization. The frontend is a separate OpenID Connect client.
 
-No Keycloak integration is currently installed or configured. This document defines
-the required target.
+Passport JWT/JWKS dependencies, typed Keycloak configuration, persistent Keycloak
+26.7.0 infrastructure, a reproducible realm, runtime token validation, reusable
+authentication/role/profile guards, `GET /api/v1/auth/me`, lazy local profiles, and
+`GET /api/v1/users/me` are implemented. All implemented domain controllers enforce
+the role matrix and reject locally disabled profiles. Race, registration, result,
+and domain audit writes use the authenticated local-profile identifier. Complete
+audit-log list/detail reads are restricted to `ADMINISTRATOR`.
 
 ## Responsibility Boundary
 
@@ -39,7 +44,7 @@ NestJS manages:
 - Audience verification when configured
 - Expiration and relevant token-type verification
 - Extraction of the stable `sub` claim
-- Mapping to a local `UserProfile`, if used
+- Mapping to the local `UserProfile`
 - Backend role authorization
 - Resource/domain authorization and business rules
 - Safe audit logging
@@ -66,14 +71,18 @@ Wildcard redirect URIs and web origins are allowed only when strictly necessary 
 local development and must not be used in production. Public frontend clients must
 not receive or embed client secrets.
 
-Realm/client names, exact redirect URLs, frontend client type details, backend
-audience configuration, and import automation are `Decision pending`.
+The default realm is `race-management`; the API client and expected production
+audience are `race-backend`. The imported public frontend client allows the local
+`http://localhost:5173` origin and redirect paths and requires Authorization Code
+Flow with PKCE S256. Production URLs require a separate environment-specific realm
+configuration.
 
 ## Realm Roles or Client Roles
 
 The required roles may be modeled as realm roles or API-specific client roles.
 
-Selected model: Keycloak client roles.
+Selected model: Keycloak client roles. The backend reads only known application
+roles from `resource_access.race-backend.roles` after token verification.
 
 Do not mix realm and client roles without a documented need and deterministic
 mapping. Once selected, document token claim location, audience behavior, role
@@ -117,10 +126,13 @@ Possible implementation approaches:
 - A compatible NestJS/Passport strategy
 - A maintained Keycloak integration library
 
-Concrete integration: Passport JWT with `jwks-rsa`, subject to compatibility confirmation.
+Concrete integration: Passport JWT with `jwks-rsa`. Compatibility with NestJS 11,
+Passport 0.7, and Node.js 24 has been confirmed.
 
-The choice must preserve issuer, signature, expiry, audience, algorithm, and key
-rotation checks. No required JWT/Keycloak package is currently installed.
+The implemented Passport strategy accepts only RS256 access tokens, resolves keys
+from the configured JWKS URI with caching and rate limiting, and verifies exact
+issuer, expiry, and configured audience before mapping the identity. The validated
+payload must contain a non-empty `sub` and Keycloak's `typ: Bearer` claim.
 
 ## Authorization in NestJS
 
@@ -132,6 +144,12 @@ Use these conceptual components:
 - `@CurrentUser()` returns a validated authentication context, including `sub`.
 - A public-route decorator may mark explicitly public endpoints if the application
   adopts authentication-by-default.
+
+The authentication guard, role guard, `@Roles()`, and `@CurrentUser()` are
+implemented. They protect `/auth/me` and every implemented domain controller.
+Read endpoints accept all three application roles; competitor/team mutations require
+`ADMINISTRATOR`; race, registration, and result workflows accept
+`ADMINISTRATOR` or `RACE_ORGANIZER` according to the API contract.
 
 Rules:
 
@@ -160,6 +178,13 @@ claim:
 Profiles are provisioned lazily by validated `sub`; creation must be idempotent and
 concurrency-safe.
 
+The implemented profile contains `ACTIVE` or `DISABLED` status and snapshots the
+validated token's email and display name when it is first created. Keycloak remains
+authoritative; snapshots are not continuously synchronized. A disabled profile may
+read `/users/me` so the client can explain its status, but receives `403 Forbidden`
+on implemented domain routes. `/auth/me` remains a token-context endpoint and does
+not expose or provision the local profile.
+
 ## Security Responses
 
 - Return `401 Unauthorized` for missing, malformed, expired, incorrectly signed, or
@@ -181,9 +206,9 @@ settings include:
 KEYCLOAK_ISSUER
 KEYCLOAK_AUDIENCE
 KEYCLOAK_JWKS_URI
+KEYCLOAK_BASE_URL
 KEYCLOAK_REALM
-KEYCLOAK_FRONTEND_CLIENT_ID
-KEYCLOAK_API_CLIENT_ID
+KEYCLOAK_CLIENT_ID
 KEYCLOAK_ADMIN_USERNAME
 KEYCLOAK_ADMIN_PASSWORD
 DATABASE_HOST
@@ -193,7 +218,11 @@ DATABASE_USERNAME
 DATABASE_PASSWORD
 ```
 
-Final variable names and which values are derived are `Decision pending`.
+The backend configuration names above are selected. `KEYCLOAK_CLIENT_ID` identifies
+the API client whose client roles are trusted. `KEYCLOAK_AUDIENCE` may be empty only
+where audience validation is deliberately disabled; production should configure it.
+Administrative credentials belong to the future Keycloak container bootstrap and
+must not be passed to the NestJS application.
 
 - Do not commit `.env`, realm exports containing real secrets, credentials, or
   tokens.
@@ -215,9 +244,17 @@ Keycloak must use persistent production-capable database storage. It may:
 
 Selected option: one PostgreSQL container with separate databases and credentials.
 
-In both cases, isolate credentials and schemas/databases, persist storage with named
-volumes, and configure practical health checks/startup dependencies. A development
-embedded database is not the definitive production architecture.
+The selected option is implemented. An idempotent one-shot service creates or
+updates the dedicated Keycloak database role and database, while the PostgreSQL
+named volume persists both databases. Keycloak has a management-port readiness
+check and starts only after database provisioning succeeds. It never uses the
+development embedded database. The local single-node service disables distributed
+caching; a high-availability deployment requires an explicit supported cluster
+configuration.
+
+Startup import creates the realm only when it is absent. Editing the committed realm
+JSON does not overwrite an existing realm in the persistent volume; later realm
+changes need an explicit administrative migration or a deliberate local reset.
 
 ## Audit and Logging
 
@@ -227,6 +264,8 @@ embedded database is not the definitive production architecture.
 - Redact authorization headers, cookies, tokens, secrets, passwords, and protected
   claim data.
 - Restrict complete audit-log access to `ADMINISTRATOR`.
+- The implemented audit API exposes no create, update, or delete routes.
+- Domain snapshots are explicit and the generic writer removes secret-like keys.
 - Audit retention, immutability, and Keycloak event correlation are
   `Decision pending`.
 

@@ -6,6 +6,10 @@ import { CreateCompetitorDto } from './dto/create-competitor.dto';
 import { Competitor } from './entities/competitor.entity';
 import { CompetitorsService } from './competitors.service';
 import { TeamMember } from '../teams/entities/team-member.entity';
+import { RaceRegistration } from '../registrations/entities/race-registration.entity';
+import { AuditService } from '../audit/audit.service';
+
+const actorUserProfileId = 'd9385ef6-f41a-420a-a773-8bd18fbfbf10';
 
 const createDto: CreateCompetitorDto = {
   name: 'Borin Stonehelm',
@@ -39,6 +43,10 @@ describe('CompetitorsService', () => {
   let teamMembersRepository: jest.Mocked<
     Pick<Repository<TeamMember>, 'exists'>
   >;
+  let registrationsRepository: jest.Mocked<
+    Pick<Repository<RaceRegistration>, 'exists'>
+  >;
+  const auditService = { recordEvent: jest.fn().mockResolvedValue(undefined) };
 
   beforeEach(() => {
     repository = {
@@ -51,9 +59,14 @@ describe('CompetitorsService', () => {
     teamMembersRepository = {
       exists: jest.fn().mockResolvedValue(false),
     };
+    registrationsRepository = {
+      exists: jest.fn().mockResolvedValue(false),
+    };
     service = new CompetitorsService(
       repository as unknown as Repository<Competitor>,
       teamMembersRepository as unknown as Repository<TeamMember>,
+      registrationsRepository as unknown as Repository<RaceRegistration>,
+      auditService as unknown as AuditService,
     );
   });
 
@@ -62,9 +75,18 @@ describe('CompetitorsService', () => {
     repository.create.mockReturnValue(competitor);
     repository.save.mockResolvedValue(competitor);
 
-    await expect(service.create(createDto)).resolves.toBe(competitor);
+    await expect(service.create(createDto, actorUserProfileId)).resolves.toBe(
+      competitor,
+    );
     expect(repository.create).toHaveBeenCalledWith(createDto);
     expect(repository.save).toHaveBeenCalledWith(competitor);
+    expect(auditService.recordEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserProfileId,
+        action: 'COMPETITOR_CREATED',
+        entityId: competitor.id,
+      }),
+    );
   });
 
   it('maps a duplicated nickname to a conflict', async () => {
@@ -77,7 +99,9 @@ describe('CompetitorsService', () => {
       new QueryFailedError('INSERT', [], driverError),
     );
 
-    await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+    await expect(service.create(createDto, actorUserProfileId)).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it('returns not found for an unknown competitor', async () => {
@@ -91,11 +115,12 @@ describe('CompetitorsService', () => {
   it('allows a documented status transition', async () => {
     const competitor = createCompetitor();
     repository.findOne.mockResolvedValue(competitor);
-    repository.save.mockImplementation((value) => Promise.resolve(value));
+    repository.save.mockResolvedValue(competitor);
 
     const updated = await service.updateStatus(
       competitor.id,
       CompetitorStatus.SUSPENDED,
+      actorUserProfileId,
     );
 
     expect(updated.status).toBe(CompetitorStatus.SUSPENDED);
@@ -109,7 +134,11 @@ describe('CompetitorsService', () => {
     repository.findOne.mockResolvedValue(competitor);
 
     await expect(
-      service.updateStatus(competitor.id, CompetitorStatus.ACTIVE),
+      service.updateStatus(
+        competitor.id,
+        CompetitorStatus.ACTIVE,
+        actorUserProfileId,
+      ),
     ).rejects.toThrow(ConflictException);
     expect(repository.save).not.toHaveBeenCalled();
   });
@@ -117,10 +146,23 @@ describe('CompetitorsService', () => {
   it('retires instead of deleting a competitor with membership history', async () => {
     const competitor = createCompetitor();
     repository.findOne.mockResolvedValue(competitor);
-    repository.save.mockImplementation((value) => Promise.resolve(value));
+    repository.save.mockResolvedValue(competitor);
     teamMembersRepository.exists.mockResolvedValue(true);
 
-    await service.remove(competitor.id);
+    await service.remove(competitor.id, actorUserProfileId);
+
+    expect(competitor.status).toBe(CompetitorStatus.RETIRED);
+    expect(repository.save).toHaveBeenCalledWith(competitor);
+    expect(repository.remove).not.toHaveBeenCalled();
+  });
+
+  it('retires instead of deleting a competitor with race history', async () => {
+    const competitor = createCompetitor();
+    repository.findOne.mockResolvedValue(competitor);
+    repository.save.mockResolvedValue(competitor);
+    registrationsRepository.exists.mockResolvedValue(true);
+
+    await service.remove(competitor.id, actorUserProfileId);
 
     expect(competitor.status).toBe(CompetitorStatus.RETIRED);
     expect(repository.save).toHaveBeenCalledWith(competitor);

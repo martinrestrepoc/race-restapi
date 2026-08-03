@@ -1,13 +1,13 @@
 import { INestApplication } from '@nestjs/common';
-import { Test, TestingModule } from '@nestjs/testing';
+import { TestingModule } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { AppModule } from '../src/app.module';
 import { CompetitorStatus } from '../src/common/enums/competitor-status.enum';
 import { CompetitorType } from '../src/common/enums/competitor-type.enum';
 import { TeamStatus } from '../src/common/enums/team-status.enum';
 import { configureApplication } from '../src/configure-application';
+import { createAuthenticatedTestingModule } from './authenticated-testing-module';
 
 interface TeamBody {
   id: string;
@@ -66,9 +66,8 @@ describe('Teams (e2e)', () => {
       throw new Error('Team E2E tests require DATABASE_NAME ending in _test');
     }
 
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
+    const moduleFixture: TestingModule =
+      await createAuthenticatedTestingModule();
 
     app = moduleFixture.createNestApplication();
     configureApplication(app);
@@ -85,10 +84,14 @@ describe('Teams (e2e)', () => {
   });
 
   afterAll(async () => {
-    await dataSource.query(
-      'TRUNCATE TABLE team_members, teams, competitors RESTART IDENTITY CASCADE',
-    );
-    await app.close();
+    if (dataSource) {
+      await dataSource.query(
+        'TRUNCATE TABLE team_members, teams, competitors RESTART IDENTITY CASCADE',
+      );
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   it('creates, lists, retrieves, updates and changes team status', async () => {

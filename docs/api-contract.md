@@ -8,15 +8,17 @@ same topic. Their acceptance does not imply implementation.
 
 ## Status and Scope
 
-The competitor, team, and membership endpoints are implemented. The remaining
-domain surface is proposed and not yet implemented. Business constraints remain authoritative in
-[Business rules](business-rules.md). Identity and token endpoints belong to
-Keycloak, not this API.
+Competitor, team/membership, race, registration, result, and current-user profile
+endpoints and administrator audit queries are implemented. Standings and
+administrative profile management remain proposed. Business constraints remain authoritative in
+[Business rules](business-rules.md). Identity and token endpoints belong to Keycloak,
+not this API.
 
-Authentication integration is intentionally deferred while the domain modules are
-built. Implemented domain endpoints are temporarily unprotected for local development and
-must not be deployed as a secure API until the documented guards and roles are
-implemented.
+Token validation and the protected `GET /api/v1/auth/me` endpoint are implemented.
+All implemented competitor, team, race, registration, and result endpoints enforce
+the role matrix and active local-profile status. Authenticated actor attribution and
+audit events cover profile provisioning and implemented mutations to competitors,
+teams/memberships, races, registrations, and results.
 
 ## Base Path and Versioning
 
@@ -60,11 +62,12 @@ Application-facing profile operations may include:
 | Method and path        | Purpose                                                          | Role          |
 | ---------------------- | ---------------------------------------------------------------- | ------------- |
 | `GET /api/v1/auth/me`  | Validated subject, effective roles, and relevant app permissions | Authenticated |
-| `GET /api/v1/users/me` | Local `UserProfile`, if local profiles are adopted               | Authenticated |
+| `GET /api/v1/users/me` | Lazily provisioned local `UserProfile`                           | Authenticated |
 
-Neither response may contain access/refresh tokens, passwords/hashes, client
-secrets, or raw Keycloak administrative data. Whether both aliases are retained is
-`Decision pending`; do not implement duplicate endpoints without a reason.
+Neither response contains access/refresh tokens, passwords/hashes, client secrets,
+or raw Keycloak administrative data. `/auth/me` reports validated token context;
+`/users/me` reports/provisions the application profile. A locally disabled user may
+read `/users/me`, while domain endpoints return `403`.
 
 ## HTTP Semantics
 
@@ -108,7 +111,8 @@ The tables define the proposed surface, not implemented behavior.
 | `PATCH /api/v1/users/:id/status` | Change local profile status, if adopted | Admin         |
 
 The initial version has no Keycloak Admin API facade. Local profile statuses are
-`ACTIVE` and `DISABLED`; an administrator may change local status.
+`ACTIVE` and `DISABLED`. Only `GET /users/me` is currently implemented; the listed
+administrative profile operations remain proposed.
 
 ### Competitors
 
@@ -121,9 +125,10 @@ The initial version has no Keycloak Admin API facade. Local profile statuses are
 | `PATCH /api/v1/competitors/:id/status` | Status transition                 | Admin        |
 | `DELETE /api/v1/competitors/:id`       | Delete when allowed or deactivate | Admin        |
 
-The current implementation physically deletes competitors without membership
-history and retires competitors that have membership history. Registration and
-result history checks will extend this policy when those modules are introduced.
+The current implementation physically deletes competitors without membership or
+registration history and retires competitors that have either kind of history.
+Result history is already reachable through its required registration, so it also
+prevents physical deletion.
 `PUT` replaces all editable profile fields but does not change status; status
 changes use the dedicated `PATCH` endpoint and the transitions in ADR 0001.
 
@@ -209,6 +214,10 @@ and standings recalculation.
 
 Audit mutation endpoints are not proposed because audit records should not normally
 be client-editable.
+
+The implemented collection accepts `action`, `entityType`,
+`actorUserProfileId`, `entityId`, `from`, and `to` filters in addition to shared
+`page` and `limit`. Entries are ordered by newest occurrence first.
 
 ## Collection Queries
 

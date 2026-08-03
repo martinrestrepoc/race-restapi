@@ -17,6 +17,7 @@ import { RaceRegistration } from '../../registrations/entities/race-registration
 
 @Entity({ name: 'race_results' })
 @Index('idx_results_race_status', ['raceId', 'status'])
+@Index('idx_results_recorded_by', ['recordedByUserProfileId'])
 @Index('uq_results_registration', ['registrationId'], { unique: true })
 @Index('uq_results_race_final_position', ['raceId', 'finalPosition'], {
   unique: true,

@@ -1,20 +1,17 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import type {
-  EnvironmentVariables,
-  NodeEnvironment,
-} from '../config/environment.validation';
-import { createTypeOrmOptions } from './typeorm-options.factory';
+import {
+  createTypeOrmOptions,
+  type DatabaseEnvironment,
+} from './typeorm-options.factory';
 
 @Module({
   imports: [
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => {
-        const environment: EnvironmentVariables = {
-          NODE_ENV: configService.getOrThrow<NodeEnvironment>('NODE_ENV'),
-          PORT: configService.getOrThrow<number>('PORT'),
+        const environment: DatabaseEnvironment = {
           DATABASE_HOST: configService.getOrThrow<string>('DATABASE_HOST'),
           DATABASE_PORT: configService.getOrThrow<number>('DATABASE_PORT'),
           DATABASE_NAME: configService.getOrThrow<string>('DATABASE_NAME'),
@@ -23,8 +20,6 @@ import { createTypeOrmOptions } from './typeorm-options.factory';
           DATABASE_PASSWORD:
             configService.getOrThrow<string>('DATABASE_PASSWORD'),
           DATABASE_SSL: configService.getOrThrow<boolean>('DATABASE_SSL'),
-          TEAM_MAX_MEMBERS:
-            configService.getOrThrow<number>('TEAM_MAX_MEMBERS'),
         };
 
         return {

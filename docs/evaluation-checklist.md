@@ -60,19 +60,21 @@ are intentionally maintained only here.
 
 ## Authentication and Authorization
 
-- [ ] Keycloak starts correctly with persistent storage.
-- [ ] A dedicated project realm can be reproduced from reviewed configuration.
+- [x] Keycloak starts correctly with persistent storage.
+- [x] A dedicated project realm can be reproduced from reviewed configuration.
 - [ ] The frontend uses Authorization Code Flow with PKCE.
 - [ ] Keycloak issues the access tokens accepted by the API.
-- [ ] NestJS validates signature, issuer, expiration, and configured audience.
-- [ ] The required `ADMINISTRATOR`, `RACE_ORGANIZER`, and `VIEWER` roles exist.
-- [ ] Backend guards enforce required roles.
+- [x] NestJS validates signature, issuer, expiration, and configured audience.
+- [x] The required `ADMINISTRATOR`, `RACE_ORGANIZER`, and `VIEWER` roles exist.
+- [x] Backend guards enforce required roles.
+- [x] Validated subjects resolve to lazy local profiles and disabled profiles are
+      rejected from domain routes.
 - [ ] Domain services enforce resource-specific authorization.
-- [ ] Missing/invalid authentication returns `401`.
-- [ ] Insufficient permission returns `403`.
-- [ ] No frontend-supplied role is trusted.
-- [ ] No local password authentication or custom application JWT issuance exists.
-- [ ] The application stores no password/hash, access token, or refresh token.
+- [x] Missing/invalid authentication returns `401`.
+- [x] Insufficient permission returns `403`.
+- [x] No frontend-supplied role is trusted.
+- [x] No local password authentication or custom application JWT issuance exists.
+- [x] The application stores no password/hash, access token, or refresh token.
 
 ## Database Design and Persistence
 
@@ -172,11 +174,15 @@ At documentation creation time:
 - [x] Competitor, team, and historical-membership implementations exist.
 - [x] TypeORM/PostgreSQL configuration and migration tooling exist.
 - [x] Competitor and team/membership migrations exist; seeds remain pending.
-- [ ] Keycloak integration/realm configuration exists.
-- [x] Docker/Compose configuration exists for the current backend/PostgreSQL scope.
+- [x] Local-profile provisioning, status enforcement, and authenticated actor
+      attribution exist.
+- [x] Audit events are append-only and complete audit reads are restricted to
+      administrators.
+- [x] Keycloak integration/realm configuration exists.
+- [x] Docker/Compose configuration exists for backend, PostgreSQL, and Keycloak.
 - [ ] The separate frontend application exists (the `frontend/` directory is
       currently only a placeholder).
-- [x] Competitor/team unit and database-backed E2E coverage exists; the remaining
-      domain and security coverage is pending.
+- [x] Competitor/team unit and database-backed E2E coverage exists, with dedicated
+      JWT/JWKS security and controller-policy tests.
 
 This baseline is informational and must be updated as implementation progresses.

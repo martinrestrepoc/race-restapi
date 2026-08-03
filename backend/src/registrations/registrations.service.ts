@@ -18,6 +18,8 @@ import { Team } from '../teams/entities/team.entity';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
 import { RegistrationQueryDto } from './dto/registration-query.dto';
 import { RaceRegistration } from './entities/race-registration.entity';
+import { ClockService } from '../common/time/clock.service';
+import { AuditService } from '../audit/audit.service';
 
 export interface RegistrationListResult {
   items: RaceRegistration[];
@@ -45,47 +47,75 @@ export class RegistrationsService {
     private readonly registrationsRepository: Repository<RaceRegistration>,
     @InjectRepository(Race)
     private readonly racesRepository: Repository<Race>,
-    @InjectRepository(Competitor)
-    private readonly competitorsRepository: Repository<Competitor>,
-    @InjectRepository(Team)
-    private readonly teamsRepository: Repository<Team>,
-    @InjectRepository(TeamMember)
-    private readonly teamMembersRepository: Repository<TeamMember>,
     private readonly dataSource: DataSource,
+    private readonly clock: ClockService,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(
     raceId: string,
     dto: CreateRegistrationDto,
+    performedByUserProfileId: string,
   ): Promise<RaceRegistration> {
     if (Boolean(dto.competitorId) === Boolean(dto.teamId)) {
       throw new BadRequestException(
         'Exactly one of competitorId or teamId must be provided',
       );
     }
-    const race = await this.racesRepository.findOneBy({ id: raceId });
-    if (!race)
-      throw new NotFoundException(`Race with ID ${raceId} was not found`);
-    this.ensureRegistrationWindowOpen(race);
-
-    if (dto.competitorId) {
-      await this.validateIndividual(race, dto.competitorId);
-    } else {
-      await this.validateTeam(race, dto.teamId!);
-    }
-
-    const registration = this.registrationsRepository.create({
-      raceId,
-      race,
-      competitorId: dto.competitorId ?? null,
-      teamId: dto.teamId ?? null,
-      status: RegistrationStatus.PENDING,
-      startingPosition: null,
-      validationNotes: null,
-      performedByUserProfileId: null,
-    });
     try {
-      return await this.registrationsRepository.save(registration);
+      return await this.dataSource.transaction(async (manager) => {
+        const registrations = manager.getRepository(RaceRegistration);
+        const races = manager.getRepository(Race);
+        const competitors = manager.getRepository(Competitor);
+        const teams = manager.getRepository(Team);
+        const memberships = manager.getRepository(TeamMember);
+        const race = await races.findOne({
+          where: { id: raceId },
+          lock: { mode: 'pessimistic_write' },
+        });
+
+        if (!race) {
+          throw new NotFoundException(`Race with ID ${raceId} was not found`);
+        }
+        this.ensureRegistrationWindowOpen(race);
+
+        if (dto.competitorId) {
+          await this.validateIndividual(
+            race,
+            dto.competitorId,
+            competitors,
+            registrations,
+            memberships,
+          );
+        } else {
+          await this.validateTeam(race, dto.teamId!, teams, registrations);
+        }
+
+        const registration = registrations.create({
+          raceId,
+          race,
+          competitorId: dto.competitorId ?? null,
+          teamId: dto.teamId ?? null,
+          status: RegistrationStatus.PENDING,
+          startingPosition: null,
+          validationNotes: null,
+          performedByUserProfileId,
+        });
+
+        const saved = await registrations.save(registration);
+        await this.auditService.recordEvent(
+          {
+            actorUserProfileId: performedByUserProfileId,
+            action: 'REGISTRATION_CREATED',
+            entityType: 'RACE_REGISTRATION',
+            entityId: saved.id,
+            description: 'Race registration created',
+            newValues: this.snapshot(saved),
+          },
+          manager,
+        );
+        return saved;
+      });
     } catch (error) {
       if (hasPostgresErrorCode(error, '23505')) {
         throw new ConflictException(
@@ -135,6 +165,7 @@ export class RegistrationsService {
   async approve(
     id: string,
     startingPosition: number,
+    performedByUserProfileId: string,
   ): Promise<RaceRegistration> {
     try {
       return await this.dataSource.transaction(async (manager) => {
@@ -178,10 +209,25 @@ export class RegistrationsService {
             `Starting position ${startingPosition} is already assigned`,
           );
         }
+        const previousValues = this.snapshot(registration);
         registration.status = RegistrationStatus.APPROVED;
         registration.startingPosition = startingPosition;
         registration.validationNotes = null;
-        return registrations.save(registration);
+        registration.performedByUserProfileId = performedByUserProfileId;
+        const saved = await registrations.save(registration);
+        await this.auditService.recordEvent(
+          {
+            actorUserProfileId: performedByUserProfileId,
+            action: 'REGISTRATION_APPROVED',
+            entityType: 'RACE_REGISTRATION',
+            entityId: saved.id,
+            description: 'Race registration approved',
+            previousValues,
+            newValues: this.snapshot(saved),
+          },
+          manager,
+        );
+        return saved;
       });
     } catch (error) {
       if (hasPostgresErrorCode(error, '23505')) {
@@ -193,19 +239,35 @@ export class RegistrationsService {
     }
   }
 
-  async reject(id: string, reason: string): Promise<RaceRegistration> {
+  async reject(
+    id: string,
+    reason: string,
+    performedByUserProfileId: string,
+  ): Promise<RaceRegistration> {
     const registration = await this.findOne(id);
     if (registration.status !== RegistrationStatus.PENDING) {
       throw new ConflictException(
         'Only a pending registration can be rejected',
       );
     }
+    const previousValues = this.snapshot(registration);
     registration.status = RegistrationStatus.REJECTED;
     registration.validationNotes = reason;
-    return this.registrationsRepository.save(registration);
+    registration.performedByUserProfileId = performedByUserProfileId;
+    const saved = await this.registrationsRepository.save(registration);
+    await this.auditService.recordEvent({
+      actorUserProfileId: performedByUserProfileId,
+      action: 'REGISTRATION_REJECTED',
+      entityType: 'RACE_REGISTRATION',
+      entityId: saved.id,
+      description: 'Race registration rejected',
+      previousValues,
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
-  async cancel(id: string): Promise<void> {
+  async cancel(id: string, performedByUserProfileId: string): Promise<void> {
     const registration = await this.findOne(id);
     if (
       registration.status === RegistrationStatus.REJECTED ||
@@ -216,29 +278,55 @@ export class RegistrationsService {
       );
     }
     this.ensureRegistrationWindowOpen(registration.race);
+    const previousValues = this.snapshot(registration);
     registration.status = RegistrationStatus.CANCELLED;
+    registration.performedByUserProfileId = performedByUserProfileId;
     await this.registrationsRepository.save(registration);
+    await this.auditService.recordEvent({
+      actorUserProfileId: performedByUserProfileId,
+      action: 'REGISTRATION_CANCELLED',
+      entityType: 'RACE_REGISTRATION',
+      entityId: registration.id,
+      description: 'Race registration cancelled',
+      previousValues,
+      newValues: this.snapshot(registration),
+    });
   }
 
   private ensureRegistrationWindowOpen(race: Race): void {
     if (
       race.status !== RaceStatus.OPEN_FOR_REGISTRATION ||
-      race.registrationDeadline.getTime() <= Date.now()
+      race.registrationDeadline.getTime() <= this.clock.now().getTime()
     ) {
       throw new ConflictException('Race registration window is closed');
     }
   }
 
+  private snapshot(registration: RaceRegistration): Record<string, unknown> {
+    return {
+      raceId: registration.raceId,
+      competitorId: registration.competitorId,
+      teamId: registration.teamId,
+      status: registration.status,
+      startingPosition: registration.startingPosition,
+      validationNotes: registration.validationNotes,
+      performedByUserProfileId: registration.performedByUserProfileId,
+    };
+  }
+
   private async validateIndividual(
     race: Race,
     competitorId: string,
+    competitorsRepository: Repository<Competitor>,
+    registrationsRepository: Repository<RaceRegistration>,
+    teamMembersRepository: Repository<TeamMember>,
   ): Promise<void> {
     if (race.type === RaceType.TEAM) {
       throw new ConflictException(
         'Individual participants cannot enter a team race',
       );
     }
-    const competitor = await this.competitorsRepository.findOneBy({
+    const competitor = await competitorsRepository.findOneBy({
       id: competitorId,
     });
     if (!competitor) {
@@ -250,7 +338,7 @@ export class RegistrationsService {
       throw new ConflictException(`Competitor ${competitorId} is not active`);
     }
     if (
-      await this.registrationsRepository.exists({
+      await registrationsRepository.exists({
         where: { raceId: race.id, competitorId },
       })
     ) {
@@ -258,13 +346,13 @@ export class RegistrationsService {
         'Participant is already registered in this race',
       );
     }
-    const memberships = await this.teamMembersRepository.find({
+    const memberships = await teamMembersRepository.find({
       where: { competitorId, leftAt: IsNull() },
     });
     const teamIds = memberships.map((membership) => membership.teamId);
     if (
       teamIds.length > 0 &&
-      (await this.registrationsRepository.exists({
+      (await registrationsRepository.exists({
         where: { raceId: race.id, teamId: In(teamIds) },
       }))
     ) {
@@ -274,11 +362,16 @@ export class RegistrationsService {
     }
   }
 
-  private async validateTeam(race: Race, teamId: string): Promise<void> {
+  private async validateTeam(
+    race: Race,
+    teamId: string,
+    teamsRepository: Repository<Team>,
+    registrationsRepository: Repository<RaceRegistration>,
+  ): Promise<void> {
     if (race.type === RaceType.INDIVIDUAL) {
       throw new ConflictException('Teams cannot enter an individual race');
     }
-    const team = await this.teamsRepository.findOne({
+    const team = await teamsRepository.findOne({
       where: { id: teamId },
       relations: { members: { competitor: true } },
     });
@@ -301,7 +394,7 @@ export class RegistrationsService {
       throw new ConflictException(`Team ${teamId} has an ineligible member`);
     }
     if (
-      await this.registrationsRepository.exists({
+      await registrationsRepository.exists({
         where: { raceId: race.id, teamId },
       })
     ) {
@@ -311,7 +404,7 @@ export class RegistrationsService {
     }
     const competitorIds = activeMembers.map((member) => member.competitorId);
     if (
-      await this.registrationsRepository.exists({
+      await registrationsRepository.exists({
         where: { raceId: race.id, competitorId: In(competitorIds) },
       })
     ) {

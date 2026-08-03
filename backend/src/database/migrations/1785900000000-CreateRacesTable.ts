@@ -38,10 +38,16 @@ export class CreateRacesTable1785900000000 implements MigrationInterface {
         CONSTRAINT chk_races_deadline_before_start CHECK (registration_deadline < scheduled_at)
       )
     `);
-    await queryRunner.query('CREATE INDEX idx_races_scheduled_at ON races (scheduled_at)');
+    await queryRunner.query(
+      'CREATE INDEX idx_races_scheduled_at ON races (scheduled_at)',
+    );
     await queryRunner.query('CREATE INDEX idx_races_status ON races (status)');
-    await queryRunner.query('CREATE INDEX idx_races_registration_deadline ON races (registration_deadline)');
-    await queryRunner.query('CREATE INDEX idx_races_organizer ON races (organizer_user_profile_id)');
+    await queryRunner.query(
+      'CREATE INDEX idx_races_registration_deadline ON races (registration_deadline)',
+    );
+    await queryRunner.query(
+      'CREATE INDEX idx_races_organizer ON races (organizer_user_profile_id)',
+    );
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {

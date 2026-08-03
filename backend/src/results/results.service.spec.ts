@@ -5,6 +5,7 @@ import { RegistrationStatus } from '../common/enums/registration-status.enum';
 import { ResultStatus } from '../common/enums/result-status.enum';
 import { Race } from '../races/entities/race.entity';
 import { RaceRegistration } from '../registrations/entities/race-registration.entity';
+import { AuditService } from '../audit/audit.service';
 import { CreateResultDto } from './dto/create-result.dto';
 import { RaceResult } from './entities/race-result.entity';
 import { ResultsService } from './results.service';
@@ -16,6 +17,7 @@ const auditService = {
 
 const raceId = '1315c17a-44fd-4da6-bffe-a9d85dfa794d';
 const registrationId = '1d73dfe9-2291-49a9-8344-6128cbecf109';
+const actorUserProfileId = 'd9385ef6-f41a-420a-a773-8bd18fbfbf10';
 
 describe('ResultsService', () => {
   const resultsRepository = {
@@ -29,7 +31,7 @@ describe('ResultsService', () => {
     resultsRepository as unknown as Repository<RaceResult>,
     racesRepository as unknown as Repository<Race>,
     { transaction } as unknown as DataSource,
-    auditService,
+    auditService as unknown as AuditService,
   );
 
   beforeEach(() => jest.clearAllMocks());
@@ -52,7 +54,12 @@ describe('ResultsService', () => {
       save: jest.fn((value: RaceResult) => Promise.resolve(value)),
       exists: overrides.exists ?? jest.fn().mockResolvedValue(false),
       find: overrides.find ?? jest.fn().mockResolvedValue([]),
-    };
+    } as unknown as jest.Mocked<
+      Pick<
+        Repository<RaceResult>,
+        'create' | 'merge' | 'save' | 'exists' | 'find'
+      >
+    >;
     const manager = {
       getRepository: jest.fn((entity) => {
         if (entity === Race)
@@ -87,11 +94,16 @@ describe('ResultsService', () => {
       penaltyTimeMs: 2500,
     };
 
-    const result = await service.create(raceId, dto);
+    const result = await service.create(raceId, dto, actorUserProfileId);
 
     expect(result.finalTimeMs).toBe(77500);
     expect(result.startingPosition).toBe(3);
-    expect(auditService.recordResultCreated).toHaveBeenCalledTimes(1);
+    expect(result.recordedByUserProfileId).toBe(actorUserProfileId);
+    expect(auditService.recordResultCreated).toHaveBeenCalledWith(
+      expect.anything(),
+      result,
+      actorUserProfileId,
+    );
   });
 
   it('records the previous and corrected result in the audit service', async () => {
@@ -118,29 +130,38 @@ describe('ResultsService', () => {
       } as RaceRegistration,
     );
 
-    await service.update(existingResult.id, {
-      status: ResultStatus.FINISHED,
-      finalPosition: 2,
-      rawTimeMs: 79000,
-      penaltyTimeMs: 0,
-    });
+    await service.update(
+      existingResult.id,
+      {
+        status: ResultStatus.FINISHED,
+        finalPosition: 2,
+        rawTimeMs: 79000,
+        penaltyTimeMs: 0,
+      },
+      actorUserProfileId,
+    );
 
     expect(auditService.recordResultCorrected).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({ rawTimeMs: 80000 }),
       expect.objectContaining({ rawTimeMs: 79000 }),
+      actorUserProfileId,
     );
   });
 
   it('rejects times and final position for a non-finished result', async () => {
     await expect(
-      service.create(raceId, {
-        registrationId,
-        status: ResultStatus.DISQUALIFIED,
-        finalPosition: 1,
-        rawTimeMs: 1000,
-        penaltyTimeMs: 0,
-      }),
+      service.create(
+        raceId,
+        {
+          registrationId,
+          status: ResultStatus.DISQUALIFIED,
+          finalPosition: 1,
+          rawTimeMs: 1000,
+          penaltyTimeMs: 0,
+        },
+        actorUserProfileId,
+      ),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(transaction).not.toHaveBeenCalled();
   });
@@ -157,11 +178,15 @@ describe('ResultsService', () => {
     );
 
     await expect(
-      service.create(raceId, {
-        registrationId,
-        status: ResultStatus.DID_NOT_START,
-        penaltyTimeMs: 0,
-      }),
+      service.create(
+        raceId,
+        {
+          registrationId,
+          status: ResultStatus.DID_NOT_START,
+          penaltyTimeMs: 0,
+        },
+        actorUserProfileId,
+      ),
     ).rejects.toThrow('Only an approved registration');
   });
 
@@ -182,13 +207,17 @@ describe('ResultsService', () => {
     );
 
     await expect(
-      service.create(raceId, {
-        registrationId,
-        status: ResultStatus.FINISHED,
-        finalPosition: 1,
-        rawTimeMs: 60000,
-        penaltyTimeMs: 0,
-      }),
+      service.create(
+        raceId,
+        {
+          registrationId,
+          status: ResultStatus.FINISHED,
+          finalPosition: 1,
+          rawTimeMs: 60000,
+          penaltyTimeMs: 0,
+        },
+        actorUserProfileId,
+      ),
     ).rejects.toThrow('winner must have the lowest final time');
   });
 });

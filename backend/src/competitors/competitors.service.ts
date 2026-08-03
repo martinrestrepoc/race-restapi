@@ -12,6 +12,8 @@ import { CreateCompetitorDto } from './dto/create-competitor.dto';
 import { UpdateCompetitorDto } from './dto/update-competitor.dto';
 import { Competitor } from './entities/competitor.entity';
 import { TeamMember } from '../teams/entities/team-member.entity';
+import { RaceRegistration } from '../registrations/entities/race-registration.entity';
+import { AuditService } from '../audit/audit.service';
 
 export interface CompetitorListResult {
   items: Competitor[];
@@ -58,12 +60,26 @@ export class CompetitorsService {
     private readonly competitorsRepository: Repository<Competitor>,
     @InjectRepository(TeamMember)
     private readonly teamMembersRepository: Repository<TeamMember>,
+    @InjectRepository(RaceRegistration)
+    private readonly registrationsRepository: Repository<RaceRegistration>,
+    private readonly auditService: AuditService,
   ) {}
 
-  async create(dto: CreateCompetitorDto): Promise<Competitor> {
+  async create(
+    dto: CreateCompetitorDto,
+    actorUserProfileId: string,
+  ): Promise<Competitor> {
     const competitor = this.competitorsRepository.create(dto);
-
-    return this.save(competitor);
+    const saved = await this.save(competitor);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'COMPETITOR_CREATED',
+      entityType: 'COMPETITOR',
+      entityId: saved.id,
+      description: 'Competitor created',
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
   async findAll(query: CompetitorQueryDto): Promise<CompetitorListResult> {
@@ -119,16 +135,31 @@ export class CompetitorsService {
     return competitor;
   }
 
-  async update(id: string, dto: UpdateCompetitorDto): Promise<Competitor> {
+  async update(
+    id: string,
+    dto: UpdateCompetitorDto,
+    actorUserProfileId: string,
+  ): Promise<Competitor> {
     const competitor = await this.findOne(id);
+    const previousValues = this.snapshot(competitor);
     this.competitorsRepository.merge(competitor, dto);
-
-    return this.save(competitor);
+    const saved = await this.save(competitor);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'COMPETITOR_UPDATED',
+      entityType: 'COMPETITOR',
+      entityId: saved.id,
+      description: 'Competitor updated',
+      previousValues,
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
   async updateStatus(
     id: string,
     targetStatus: CompetitorStatus,
+    actorUserProfileId: string,
   ): Promise<Competitor> {
     const competitor = await this.findOne(id);
     const allowedTargets = allowedStatusTransitions[competitor.status];
@@ -139,25 +170,55 @@ export class CompetitorsService {
       );
     }
 
+    const previousValues = this.snapshot(competitor);
     competitor.status = targetStatus;
-    return this.competitorsRepository.save(competitor);
+    const saved = await this.competitorsRepository.save(competitor);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'COMPETITOR_STATUS_CHANGED',
+      entityType: 'COMPETITOR',
+      entityId: saved.id,
+      description: 'Competitor status changed',
+      previousValues,
+      newValues: this.snapshot(saved),
+    });
+    return saved;
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actorUserProfileId: string): Promise<void> {
     const competitor = await this.findOne(id);
-    const hasMembershipHistory = await this.teamMembersRepository.exists({
-      where: { competitorId: id },
-    });
+    const previousValues = this.snapshot(competitor);
+    const [hasMembershipHistory, hasRegistrationHistory] = await Promise.all([
+      this.teamMembersRepository.exists({ where: { competitorId: id } }),
+      this.registrationsRepository.exists({ where: { competitorId: id } }),
+    ]);
 
-    if (hasMembershipHistory) {
+    if (hasMembershipHistory || hasRegistrationHistory) {
       if (competitor.status !== CompetitorStatus.RETIRED) {
         competitor.status = CompetitorStatus.RETIRED;
         await this.competitorsRepository.save(competitor);
       }
+      await this.auditService.recordEvent({
+        actorUserProfileId,
+        action: 'COMPETITOR_RETIRED',
+        entityType: 'COMPETITOR',
+        entityId: competitor.id,
+        description: 'Competitor retired because history must be preserved',
+        previousValues,
+        newValues: this.snapshot(competitor),
+      });
       return;
     }
 
     await this.competitorsRepository.remove(competitor);
+    await this.auditService.recordEvent({
+      actorUserProfileId,
+      action: 'COMPETITOR_DELETED',
+      entityType: 'COMPETITOR',
+      entityId: id,
+      description: 'Competitor physically deleted without history',
+      previousValues,
+    });
   }
 
   private async save(competitor: Competitor): Promise<Competitor> {
@@ -172,5 +233,18 @@ export class CompetitorsService {
 
       throw error;
     }
+  }
+
+  private snapshot(competitor: Competitor): Record<string, unknown> {
+    return {
+      name: competitor.name,
+      nickname: competitor.nickname,
+      type: competitor.type,
+      dateOfBirth: competitor.dateOfBirth,
+      weight: competitor.weight,
+      height: competitor.height,
+      origin: competitor.origin,
+      status: competitor.status,
+    };
   }
 }

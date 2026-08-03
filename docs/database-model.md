@@ -10,9 +10,9 @@ same topic. Their acceptance does not imply implementation.
 
 PostgreSQL stores application-domain data. Keycloak stores identity-system data.
 TypeORM is the definitive ORM and TypeORM migrations are the definitive application
-schema-evolution mechanism. `Competitor`, `Team`, and `TeamMember` are implemented
-as TypeORM entities with reviewed migrations. The remaining entities in this
-document are still conceptual.
+schema-evolution mechanism. `UserProfile`, `Competitor`, `Team`, `TeamMember`,
+`Race`, `RaceRegistration`, `RaceResult`, and `AuditLog` are implemented as TypeORM
+entities with reviewed migrations. Standings remain derived/conceptual.
 
 ### Keycloak-Owned Data
 
@@ -28,7 +28,7 @@ Keycloak owns and must not have its data duplicated in the application schema:
 
 ### Application-Owned Identity Reference
 
-PostgreSQL may contain a `UserProfile` for domain references and audit attribution:
+PostgreSQL contains a `UserProfile` for domain references and audit attribution:
 
 ```text
 UserProfile
@@ -48,8 +48,9 @@ UserProfile
   tokens.
 - Keycloak remains the owner of identity data even when selected claims are cached.
 
-The need for `emailSnapshot`, profile status values (`ACTIVE`/`DISABLED`) and lazy profile creation, and
-claim synchronization is `Decision pending`.
+Profiles are created lazily and idempotently from a validated `sub`. Status values
+are `ACTIVE` and `DISABLED`. Email and display name are creation-time snapshots;
+continuous claim synchronization is not part of the current implementation.
 
 ## Roles
 
@@ -190,8 +191,8 @@ PostgreSQL the owner of credentials.
   `emailSnapshot`; display name; status; timestamps.
 - **Relationships:** organizer of races; actor for registrations, results, and
   audit records.
-- **Constraints:** unique/non-null `keycloakUserId`; required display name/status
-  policy is `Decision pending`.
+- **Constraints:** unique/non-null `keycloakUserId`; non-empty display name; status
+  limited to `ACTIVE` or `DISABLED`.
 - **Nullability:** `emailSnapshot` may be null; other optional claim snapshots are
   not defined.
 - **Indexes:** unique `keycloakUserId`; optional email index only if a domain query
@@ -305,10 +306,10 @@ PostgreSQL the owner of credentials.
 - **Purpose:** provide traceability for important application actions.
 - **Main fields/types:** identifier; actor; action; entity type/identifier; timestamp;
   optional description and JSON previous/new values.
-- **Relationships:** optional/required actor `UserProfile` depending on system-event
-  policy.
-- **Constraints:** action/entity/timestamp required; actor nullability for system
-  events is `Decision pending`.
+- **Relationships:** actor `UserProfile` for application-user events.
+- **Constraints:** action/entity/timestamp required. The database keeps the actor
+  nullable for historical/system-event compatibility; all currently emitted
+  application events provide an authenticated actor.
 - **Nullability:** descriptions and value snapshots are optional.
 - **Indexes:** occurred time; actor; `(entityType, entityId)`; action.
 - **Deletion:** append-only; no application update/delete endpoints. Retention

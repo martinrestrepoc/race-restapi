@@ -10,11 +10,11 @@ import {
 @Index('idx_audit_logs_occurred_at', ['occurredAt'])
 @Index('idx_audit_logs_entity', ['entityType', 'entityId'])
 @Index('idx_audit_logs_action', ['action'])
+@Index('idx_audit_logs_actor', ['actorUserProfileId'])
 export class AuditLog {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  // This remains nullable until authenticated UserProfile attribution is added.
   @Column({ type: 'uuid', name: 'actor_user_profile_id', nullable: true })
   actorUserProfileId: string | null;
 

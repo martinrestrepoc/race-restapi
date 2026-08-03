@@ -8,12 +8,15 @@ same topic. Their acceptance does not imply implementation.
 
 ## Current State
 
-Jest, `@nestjs/testing`, and Supertest are installed. Competitor and team service
-tests cover creation, uniqueness conflicts, lifecycle transitions, historical
-deletion behavior, membership capacity, and missing memberships. E2E tests apply
-real migrations to isolated PostgreSQL and cover both CRUD modules, pagination,
-validation, uniqueness, lifecycle behavior, exclusive active membership, and
-membership history. Keycloak, role, and seed tests do not exist yet.
+Jest, `@nestjs/testing`, and Supertest are installed. Unit tests cover the current
+domain rules and the role policy metadata for every implemented controller. E2E
+tests apply real migrations to isolated PostgreSQL and cover the current CRUD
+workflows. A dedicated security suite uses disposable RSA keys and a local JWKS
+server to verify signature, issuer, audience, expiration, token type, role denial,
+and `401` versus `403`. Unit and PostgreSQL-backed E2E tests cover lazy local-profile
+provisioning, idempotency, disabled-profile behavior, actor propagation, audit
+filter/detail reads, and administrator-only audit authorization. Seed tests remain
+pending.
 
 The target suite must contain at least 15 meaningful automated tests. Getter/setter
 tests do not count.
@@ -149,7 +152,16 @@ Viable strategies:
    or authorization.
 
 Selected strategy: ordinary E2E tests may override authentication only when
-security is not under test; dedicated security E2E uses disposable Keycloak.
+security is not under test. The dedicated security suite uses a controlled local
+JWKS server and disposable RSA keys while exercising the real Passport strategy and
+role guards.
+
+Ordinary domain E2E substitutes only `JwtAuthGuard` with a controlled administrator
+identity; it does not override `RolesGuard` or `ActiveUserProfileGuard`. Each suite
+uses a distinct `sub` to isolate provisioned profile state. Controller-policy unit
+tests verify the declared role mapping independently.
+
+Run it independently with `npm run test:security` from `backend/`.
 
 - Unit tests may mock a context that is already authenticated and validated.
 - E2E security tests must exercise realistic signature, issuer, expiry, audience,
@@ -172,8 +184,8 @@ required test topology.
 - Use transactions carefully: transaction rollback isolation can hide commit-time or
   cross-connection concurrency behavior.
 
-Whether tests use one database per worker, schema isolation, container recreation,
-or controlled truncation is `Decision pending`.
+The current E2E suite runs serially against a disposable `_test` database, applies
+real migrations, uses distinct subjects by suite, and performs controlled cleanup.
 
 ## Error and Contract Assertions
 
@@ -223,9 +235,12 @@ PostgreSQL database.
 
 `npm run test:e2e` runs sequentially and requires `DATABASE_NAME` to end in
 `_test`. The suite applies pending migrations and may clear competitor, team, and
-membership tables; it must never target development or production data.
+membership tables; it must never target development or production data. The root
+`compose.test.yml` provides a disposable PostgreSQL instance on port `5434` by
+default. Its data directory is a `tmpfs` and its static credentials are exclusively
+for local tests.
 
-No separate integration-test, database-test, seed, or container-test script exists.
+No separate integration-test, seed, or container-test script exists.
 
 ```text
 Recommended script - not currently configured: test:integration

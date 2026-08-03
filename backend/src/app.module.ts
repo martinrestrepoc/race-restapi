@@ -10,6 +10,8 @@ import { RacesModule } from './races/races.module';
 import { RegistrationsModule } from './registrations/registrations.module';
 import { ResultsModule } from './results/results.module';
 import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { AuditModule } from './audit/audit.module';
       validate: validateEnvironment,
     }),
     DatabaseModule,
+    AuthModule,
+    UsersModule,
     CompetitorsModule,
     TeamsModule,
     RacesModule,

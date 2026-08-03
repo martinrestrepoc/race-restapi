@@ -7,9 +7,16 @@ import { Team } from '../teams/entities/team.entity';
 import { RaceRegistration } from './entities/race-registration.entity';
 import { RegistrationsController } from './registrations.controller';
 import { RegistrationsService } from './registrations.service';
+import { ClockService } from '../common/time/clock.service';
+import { AuthModule } from '../auth/auth.module';
+import { UsersModule } from '../users/users.module';
+import { AuditModule } from '../audit/audit.module';
 
 @Module({
   imports: [
+    AuthModule,
+    UsersModule,
+    AuditModule,
     TypeOrmModule.forFeature([
       RaceRegistration,
       Race,
@@ -19,7 +26,7 @@ import { RegistrationsService } from './registrations.service';
     ]),
   ],
   controllers: [RegistrationsController],
-  providers: [RegistrationsService],
+  providers: [RegistrationsService, ClockService],
   exports: [RegistrationsService, TypeOrmModule],
 })
 export class RegistrationsModule {}

@@ -1,16 +1,15 @@
-import type { EnvironmentVariables } from '../config/environment.validation';
-import { createTypeOrmOptions } from './typeorm-options.factory';
+import {
+  createTypeOrmOptions,
+  type DatabaseEnvironment,
+} from './typeorm-options.factory';
 
-const environment: EnvironmentVariables = {
-  NODE_ENV: 'test',
-  PORT: 3000,
+const environment: DatabaseEnvironment = {
   DATABASE_HOST: 'localhost',
   DATABASE_PORT: 5432,
   DATABASE_NAME: 'race_test',
   DATABASE_USERNAME: 'race_test',
   DATABASE_PASSWORD: 'test-only-password',
   DATABASE_SSL: false,
-  TEAM_MAX_MEMBERS: 10,
 };
 
 describe('createTypeOrmOptions', () => {

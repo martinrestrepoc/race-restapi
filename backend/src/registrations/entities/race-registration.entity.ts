@@ -16,6 +16,7 @@ import { Team } from '../../teams/entities/team.entity';
 
 @Entity({ name: 'race_registrations' })
 @Index('idx_registrations_race_status', ['raceId', 'status'])
+@Index('idx_registrations_performed_by', ['performedByUserProfileId'])
 @Index('uq_registrations_race_competitor', ['raceId', 'competitorId'], {
   unique: true,
   where: '"competitor_id" IS NOT NULL',

@@ -15,10 +15,15 @@ TypeScript, npm, Jest, `@nestjs/testing`, Supertest, ESLint, and Prettier;
 `frontend/` is currently a placeholder. The backend now has typed environment
 validation, TypeORM/PostgreSQL connection configuration, migration tooling, global
 request validation, the `/api/v1` prefix, and uniform error handling. A multi-stage
-backend image and a Compose topology for NestJS and PostgreSQL are present.
-Keycloak, seeds, the remaining domain modules, and the frontend application are not
-yet present. Competitor, team, and historical-membership modules and migrations are
-implemented.
+backend image and a Compose topology for NestJS, PostgreSQL, and Keycloak are
+present. Local user profiles, competitor, team, historical-membership, race,
+registration, result, and audit persistence modules and migrations are implemented.
+Standings, domain seeds, and the frontend application are not yet present. Audit
+writes cover profile provisioning and implemented domain mutations, carry an
+authenticated profile actor, and are queryable only by administrators. The
+authentication module validates Keycloak tokens and provides
+reusable role/profile guards; domain controllers apply the documented read,
+administrator, race-management, and active-profile policies.
 
 ## System Context
 
@@ -55,7 +60,8 @@ flowchart LR
 - A separately deployed graphical frontend: React/TypeScript/Vite under `frontend/`.
 
 TypeORM and Keycloak are definitive choices. The concrete standards-compatible
-NestJS validation uses Passport JWT with `jwks-rsa`, subject to compatibility confirmation.
+NestJS validation uses Passport JWT with `jwks-rsa`; compatibility with the current
+NestJS 11 and Node.js 24 stack has been confirmed.
 
 ## Target Backend Layout
 
@@ -256,14 +262,16 @@ TypeORM DataSource. Seed tooling is not yet configured.
 
 ## Docker Topology
 
-The current topology includes the NestJS API and a PostgreSQL application database.
-They use explicit environment configuration, an isolated network, health checks,
-and a startup dependency. PostgreSQL uses a named volume, and the backend applies
-pending TypeORM migrations before starting. The API container runs as the
-unprivileged Node user.
+The current topology includes the NestJS API, PostgreSQL, a one-shot Keycloak
+database provisioner, and Keycloak 26.7.0. They use explicit environment
+configuration, an isolated network, health checks, and ordered startup dependencies.
+PostgreSQL uses a named volume for both application and identity databases. The
+single local Keycloak instance uses local cache; a multi-instance deployment must
+switch to the supported distributed-cache configuration. The
+backend applies pending TypeORM migrations before starting. The API container runs
+as the unprivileged Node user.
 
-The required target additionally includes a frontend container, a Keycloak
-container, and persistent Keycloak storage.
+The remaining target additionally includes a frontend container.
 
 Keycloak storage has two valid target patterns:
 
@@ -273,11 +281,11 @@ Keycloak storage has two valid target patterns:
 
 Selected pattern: one PostgreSQL container with separate application and Keycloak databases and credentials.
 
-Both application and Keycloak data require named persistent volumes. Keycloak's
-development-only embedded database is not the production architecture. A realm
-import or equivalent reproducible configuration is required. The current
-`docker compose up -d --build` command is operational for the backend and
-application database only; it is not yet the complete target topology.
+Application and Keycloak data persist in the PostgreSQL named volume. Keycloak does
+not use its embedded database. An optimized pinned image enables health and metrics,
+and startup imports the reviewed `race-management` realm when it does not already
+exist. `docker compose up -d --build` is operational for PostgreSQL, Keycloak, and
+the backend; the frontend remains pending.
 
 ## Frontend Boundary
 
@@ -294,12 +302,12 @@ application database only; it is not yet the complete target topology.
 The backend uses global NestJS `ConfigModule` configuration with typed startup
 validation. The current schema defines `NODE_ENV`, `PORT`, `DATABASE_HOST`,
 `DATABASE_PORT`, `DATABASE_NAME`, `DATABASE_USERNAME`, `DATABASE_PASSWORD`, and
-`DATABASE_SSL`. A non-secret `backend/.env.example` is committed while local `.env`
-files remain ignored.
-
-Keycloak variable names and the complete production configuration schema remain
-`Decision pending`; the conceptual requirements are documented in
-[Security](security.md) and the [README](../README.md).
+`DATABASE_SSL`, `TEAM_MAX_MEMBERS`, `KEYCLOAK_BASE_URL`, `KEYCLOAK_REALM`,
+`KEYCLOAK_ISSUER`, `KEYCLOAK_JWKS_URI`, `KEYCLOAK_CLIENT_ID`, and the optional
+`KEYCLOAK_AUDIENCE`. A non-secret `backend/.env.example` is committed while local
+`.env` files remain ignored. The issuer is validated against the base URL and realm;
+the JWKS URI is independently configurable so container networking may use an
+internal Keycloak hostname.
 
 ## Related Documentation
 

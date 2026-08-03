@@ -10,7 +10,15 @@ import {
   Patch,
   Post,
   Query,
+  UseGuards,
 } from '@nestjs/common';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { AppRole } from '../auth/enums/app-role.enum';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import type { AuthenticatedActor } from '../auth/interfaces/authenticated-actor.interface';
+import { ActiveUserProfileGuard } from '../users/guards/active-user-profile.guard';
 import type { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { ApproveRegistrationDto } from './dto/approve-registration.dto';
 import { CreateRegistrationDto } from './dto/create-registration.dto';
@@ -20,6 +28,8 @@ import { RejectRegistrationDto } from './dto/reject-registration.dto';
 import { RegistrationsService } from './registrations.service';
 
 @Controller()
+@UseGuards(JwtAuthGuard, ActiveUserProfileGuard, RolesGuard)
+@Roles(AppRole.ADMINISTRATOR, AppRole.RACE_ORGANIZER)
 export class RegistrationsController {
   constructor(private readonly registrationsService: RegistrationsService) {}
 
@@ -27,9 +37,10 @@ export class RegistrationsController {
   async create(
     @Param('raceId', new ParseUUIDPipe({ version: '4' })) raceId: string,
     @Body() dto: CreateRegistrationDto,
+    @CurrentUser() actor: AuthenticatedActor,
   ): Promise<RegistrationResponseDto> {
     return RegistrationResponseDto.fromEntity(
-      await this.registrationsService.create(raceId, dto),
+      await this.registrationsService.create(raceId, dto, actor.userProfileId),
     );
   }
 
@@ -63,9 +74,14 @@ export class RegistrationsController {
   async approve(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: ApproveRegistrationDto,
+    @CurrentUser() actor: AuthenticatedActor,
   ): Promise<RegistrationResponseDto> {
     return RegistrationResponseDto.fromEntity(
-      await this.registrationsService.approve(id, dto.startingPosition),
+      await this.registrationsService.approve(
+        id,
+        dto.startingPosition,
+        actor.userProfileId,
+      ),
     );
   }
 
@@ -73,9 +89,14 @@ export class RegistrationsController {
   async reject(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
     @Body() dto: RejectRegistrationDto,
+    @CurrentUser() actor: AuthenticatedActor,
   ): Promise<RegistrationResponseDto> {
     return RegistrationResponseDto.fromEntity(
-      await this.registrationsService.reject(id, dto.reason),
+      await this.registrationsService.reject(
+        id,
+        dto.reason,
+        actor.userProfileId,
+      ),
     );
   }
 
@@ -83,7 +104,8 @@ export class RegistrationsController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async cancel(
     @Param('id', new ParseUUIDPipe({ version: '4' })) id: string,
+    @CurrentUser() actor: AuthenticatedActor,
   ): Promise<void> {
-    await this.registrationsService.cancel(id);
+    await this.registrationsService.cancel(id, actor.userProfileId);
   }
 }

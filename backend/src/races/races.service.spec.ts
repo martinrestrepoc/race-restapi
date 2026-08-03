@@ -4,8 +4,10 @@ import { RaceStatus } from '../common/enums/race-status.enum';
 import { RaceType } from '../common/enums/race-type.enum';
 import { Race } from './entities/race.entity';
 import { RacesService } from './races.service';
+import { AuditService } from '../audit/audit.service';
 
 describe('RacesService', () => {
+  const actorUserProfileId = 'd9385ef6-f41a-420a-a773-8bd18fbfbf10';
   const repository = {
     create: jest.fn(),
     save: jest.fn(),
@@ -17,10 +19,16 @@ describe('RacesService', () => {
     exists: jest.fn(),
   };
   const resultsRepository = { count: jest.fn() };
+  const clock = {
+    now: jest.fn(() => new Date('2026-08-03T12:00:00.000Z')),
+  };
+  const auditService = { recordEvent: jest.fn().mockResolvedValue(undefined) };
   const service = new RacesService(
     repository as unknown as Repository<Race>,
     registrationsRepository as unknown as Repository<never>,
     resultsRepository as unknown as Repository<never>,
+    clock,
+    auditService as unknown as AuditService,
   );
   const dto = {
     name: 'Gran carrera EIA',
@@ -43,25 +51,37 @@ describe('RacesService', () => {
     repository.create.mockImplementation((value: Race) => value);
     repository.save.mockImplementation((value: Race) => value);
 
-    const result = await service.create(dto);
+    const result = await service.create(dto, actorUserProfileId);
 
     expect(result.status).toBe(RaceStatus.DRAFT);
     expect(result.scheduledAt).toBeInstanceOf(Date);
-    expect(result.organizerUserProfileId).toBeNull();
+    expect(result.organizerUserProfileId).toBe(actorUserProfileId);
+    expect(auditService.recordEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserProfileId,
+        action: 'RACE_CREATED',
+      }),
+    );
   });
 
   it('rejects a race scheduled in the past', async () => {
     await expect(
-      service.create({ ...dto, scheduledAt: '2020-08-20T15:00:00.000Z' }),
+      service.create(
+        { ...dto, scheduledAt: '2020-08-20T15:00:00.000Z' },
+        actorUserProfileId,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('rejects a deadline that is not earlier than the start', async () => {
     await expect(
-      service.create({
-        ...dto,
-        registrationDeadline: '2099-08-21T15:00:00.000Z',
-      }),
+      service.create(
+        {
+          ...dto,
+          registrationDeadline: '2099-08-21T15:00:00.000Z',
+        },
+        actorUserProfileId,
+      ),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -78,6 +98,7 @@ describe('RacesService', () => {
     const result = await service.updateStatus(
       race.id,
       RaceStatus.OPEN_FOR_REGISTRATION,
+      actorUserProfileId,
     );
 
     expect(result.status).toBe(RaceStatus.OPEN_FOR_REGISTRATION);
@@ -90,8 +111,20 @@ describe('RacesService', () => {
     });
 
     await expect(
-      service.updateStatus('race-id', RaceStatus.DRAFT),
+      service.updateStatus('race-id', RaceStatus.DRAFT, actorUserProfileId),
     ).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  it('allows full edits only while the race is a draft', async () => {
+    repository.findOneBy.mockResolvedValue({
+      id: 'race-id',
+      status: RaceStatus.OPEN_FOR_REGISTRATION,
+    });
+
+    await expect(
+      service.update('race-id', dto, actorUserProfileId),
+    ).rejects.toThrow('cannot be edited');
+    expect(repository.save).not.toHaveBeenCalled();
   });
 
   it('requires two approved registrations before starting', async () => {
@@ -102,7 +135,11 @@ describe('RacesService', () => {
     registrationsRepository.count.mockResolvedValue(1);
 
     await expect(
-      service.updateStatus('race-id', RaceStatus.IN_PROGRESS),
+      service.updateStatus(
+        'race-id',
+        RaceStatus.IN_PROGRESS,
+        actorUserProfileId,
+      ),
     ).rejects.toThrow('at least two approved participants');
     expect(repository.save).not.toHaveBeenCalled();
   });
@@ -116,7 +153,7 @@ describe('RacesService', () => {
     resultsRepository.count.mockResolvedValue(1);
 
     await expect(
-      service.updateStatus('race-id', RaceStatus.COMPLETED),
+      service.updateStatus('race-id', RaceStatus.COMPLETED, actorUserProfileId),
     ).rejects.toThrow('Every approved participant requires a result');
   });
 
@@ -124,7 +161,7 @@ describe('RacesService', () => {
     const race = { id: 'race-id', status: RaceStatus.DRAFT } as Race;
     repository.findOneBy.mockResolvedValue(race);
 
-    await service.remove(race.id);
+    await service.remove(race.id, actorUserProfileId);
 
     expect(repository.remove).toHaveBeenCalledWith(race);
   });
@@ -137,7 +174,7 @@ describe('RacesService', () => {
     repository.findOneBy.mockResolvedValue(race);
     repository.save.mockImplementation((value: Race) => value);
 
-    await service.remove(race.id);
+    await service.remove(race.id, actorUserProfileId);
 
     expect(race.status).toBe(RaceStatus.CANCELLED);
     expect(repository.remove).not.toHaveBeenCalled();

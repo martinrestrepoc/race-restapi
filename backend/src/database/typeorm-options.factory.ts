@@ -2,8 +2,18 @@ import { join } from 'node:path';
 import type { PostgresDataSourceOptions } from 'typeorm/driver/postgres/PostgresDataSourceOptions';
 import type { EnvironmentVariables } from '../config/environment.validation';
 
+export type DatabaseEnvironment = Pick<
+  EnvironmentVariables,
+  | 'DATABASE_HOST'
+  | 'DATABASE_PORT'
+  | 'DATABASE_NAME'
+  | 'DATABASE_USERNAME'
+  | 'DATABASE_PASSWORD'
+  | 'DATABASE_SSL'
+>;
+
 export function createTypeOrmOptions(
-  environment: EnvironmentVariables,
+  environment: DatabaseEnvironment,
 ): PostgresDataSourceOptions {
   return {
     type: 'postgres',

@@ -37,6 +37,79 @@ services:
     networks:
       - race_network
 
+  keycloak-db-init:
+    image: postgres:16
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: postgres
+      PGUSER: ${POSTGRES_USER:-race_app}
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Copy .env.example to .env and set POSTGRES_PASSWORD}
+      APPLICATION_DB_NAME: ${POSTGRES_DB:-race_db}
+      KEYCLOAK_DB_NAME: ${KEYCLOAK_DB_NAME:-keycloak_db}
+      KEYCLOAK_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak_app}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set a dedicated KEYCLOAK_DB_PASSWORD in .env}
+    volumes:
+      - ./infrastructure/postgres/provision-keycloak-database.sh:/scripts/provision-keycloak-database.sh:ro
+    command: ["sh", "/scripts/provision-keycloak-database.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - race_network
+
+  keycloak:
+    build:
+      context: ./infrastructure/keycloak
+      dockerfile: Dockerfile
+      args:
+        KEYCLOAK_VERSION: "26.7.0"
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB_NAME:-keycloak_db}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak_app}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?Set a dedicated KEYCLOAK_DB_PASSWORD in .env}
+      # Este entorno ejecuta una sola instancia; para alta disponibilidad se debe usar ispn.
+      KC_CACHE: local
+      KC_HOSTNAME: ${KEYCLOAK_BASE_URL:-http://localhost:8080}
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USERNAME:-keycloak-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?Set KEYCLOAK_ADMIN_PASSWORD in .env}
+      KEYCLOAK_DEMO_ADMIN_PASSWORD: ${KEYCLOAK_DEMO_ADMIN_PASSWORD:?Set KEYCLOAK_DEMO_ADMIN_PASSWORD in .env}
+      KEYCLOAK_DEMO_ORGANIZER_PASSWORD: ${KEYCLOAK_DEMO_ORGANIZER_PASSWORD:?Set KEYCLOAK_DEMO_ORGANIZER_PASSWORD in .env}
+      KEYCLOAK_DEMO_VIEWER_PASSWORD: ${KEYCLOAK_DEMO_VIEWER_PASSWORD:?Set KEYCLOAK_DEMO_VIEWER_PASSWORD in .env}
+    command: ["start", "--optimized", "--import-realm"]
+    volumes:
+      - ./infrastructure/keycloak/race-management-realm.json:/opt/keycloak/data/import/race-management-realm.json:ro
+    ports:
+      - "127.0.0.1:${KEYCLOAK_HOST_PORT:-8080}:8080"
+    depends_on:
+      keycloak-db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "{ printf 'HEAD /health/ready HTTP/1.0\r\n\r\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    mem_limit: 1g
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - race_network
+
   backend:
     build:
       context: ./backend
@@ -57,12 +130,22 @@ services:
       DATABASE_SSL: "false"
       # Límite de membresías activas permitido por equipo.
       TEAM_MAX_MEMBERS: ${TEAM_MAX_MEMBERS:-10}
+      # El issuer es la URL pública declarada en el token. JWKS usa la URL
+      # interna que el backend podrá resolver dentro de la red de Compose.
+      KEYCLOAK_BASE_URL: ${KEYCLOAK_BASE_URL:-http://localhost:8080}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM:-race-management}
+      KEYCLOAK_ISSUER: ${KEYCLOAK_ISSUER:-http://localhost:8080/realms/race-management}
+      KEYCLOAK_JWKS_URI: ${KEYCLOAK_BACKEND_JWKS_URI:-http://keycloak:8080/realms/race-management/protocol/openid-connect/certs}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID:-race-backend}
+      KEYCLOAK_AUDIENCE: ${KEYCLOAK_AUDIENCE:-race-backend}
     ports:
       # La API queda disponible en localhost y en el valor de BACKEND_PORT.
       - "${BACKEND_PORT:-3000}:3000"
     depends_on:
       # NestJS se inicia solo cuando PostgreSQL supera su healthcheck.
       postgres:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     security_opt:
       - no-new-privileges:true

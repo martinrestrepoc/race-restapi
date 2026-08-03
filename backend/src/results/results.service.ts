@@ -46,8 +46,18 @@ export class ResultsService {
     private readonly auditService: AuditService,
   ) {}
 
-  async create(raceId: string, dto: CreateResultDto): Promise<RaceResult> {
-    return this.persistResult(raceId, dto.registrationId, dto, null);
+  async create(
+    raceId: string,
+    dto: CreateResultDto,
+    actorUserProfileId: string,
+  ): Promise<RaceResult> {
+    return this.persistResult(
+      raceId,
+      dto.registrationId,
+      dto,
+      null,
+      actorUserProfileId,
+    );
   }
 
   async findAllForRace(
@@ -80,13 +90,18 @@ export class ResultsService {
     return result;
   }
 
-  async update(id: string, dto: UpdateResultDto): Promise<RaceResult> {
+  async update(
+    id: string,
+    dto: UpdateResultDto,
+    actorUserProfileId: string,
+  ): Promise<RaceResult> {
     const result = await this.findOne(id);
     return this.persistResult(
       result.raceId,
       result.registrationId,
       dto,
       result,
+      actorUserProfileId,
     );
   }
 
@@ -95,6 +110,7 @@ export class ResultsService {
     registrationId: string,
     dto: CreateResultDto | UpdateResultDto,
     existing: RaceResult | null,
+    actorUserProfileId: string,
   ): Promise<RaceResult> {
     const normalized = this.normalizeResult(dto);
     try {
@@ -180,19 +196,25 @@ export class ResultsService {
             race,
             registration,
             startingPosition: registration.startingPosition,
-            recordedByUserProfileId: null,
+            recordedByUserProfileId: actorUserProfileId,
           });
         const previousResult = existing ? { ...existing } : null;
         results.merge(result, normalized);
+        result.recordedByUserProfileId = actorUserProfileId;
         const savedResult = await results.save(result);
         if (previousResult) {
           await this.auditService.recordResultCorrected(
             manager,
             previousResult,
             savedResult,
+            actorUserProfileId,
           );
         } else {
-          await this.auditService.recordResultCreated(manager, savedResult);
+          await this.auditService.recordResultCreated(
+            manager,
+            savedResult,
+            actorUserProfileId,
+          );
         }
         return savedResult;
       });

@@ -13,9 +13,11 @@ import { CreateTeamDto } from './dto/create-team.dto';
 import { TeamMember } from './entities/team-member.entity';
 import { Team } from './entities/team.entity';
 import { TeamsService } from './teams.service';
+import { AuditService } from '../audit/audit.service';
 
 const teamId = '5df13ac6-1dcf-4e87-bf13-52ac34d8a4d0';
 const competitorId = '69406ea2-a076-40b2-98c2-adb8df983bcc';
+const actorUserProfileId = 'd9385ef6-f41a-420a-a773-8bd18fbfbf10';
 const createDto: CreateTeamDto = {
   name: 'Iron Striders',
   description: 'Mountain racing team',
@@ -60,6 +62,9 @@ describe('TeamsService', () => {
   >;
   let transaction: jest.Mock;
   let service: TeamsService;
+  const auditService = {
+    recordEvent: jest.fn().mockResolvedValue(undefined),
+  };
 
   beforeEach(() => {
     teamsRepository = {
@@ -76,12 +81,12 @@ describe('TeamsService', () => {
     const configService = {
       getOrThrow: jest.fn().mockReturnValue(2),
     } as unknown as ConfigService<EnvironmentVariables, true>;
-
     service = new TeamsService(
       teamsRepository as unknown as Repository<Team>,
       teamMembersRepository as unknown as Repository<TeamMember>,
       { transaction } as unknown as DataSource,
       configService,
+      auditService as unknown as AuditService,
     );
   });
 
@@ -90,7 +95,9 @@ describe('TeamsService', () => {
     teamsRepository.create.mockReturnValue(team);
     teamsRepository.save.mockResolvedValue(team);
 
-    await expect(service.create(createDto)).resolves.toBe(team);
+    await expect(service.create(createDto, actorUserProfileId)).resolves.toBe(
+      team,
+    );
     expect(teamsRepository.create).toHaveBeenCalledWith({
       ...createDto,
       description: createDto.description,
@@ -107,14 +114,16 @@ describe('TeamsService', () => {
       new QueryFailedError('INSERT', [], driverError),
     );
 
-    await expect(service.create(createDto)).rejects.toThrow(ConflictException);
+    await expect(service.create(createDto, actorUserProfileId)).rejects.toThrow(
+      ConflictException,
+    );
   });
 
   it('rejects a status transition to the current status', async () => {
     teamsRepository.findOne.mockResolvedValue(createTeam());
 
     await expect(
-      service.updateStatus(teamId, TeamStatus.ACTIVE),
+      service.updateStatus(teamId, TeamStatus.ACTIVE, actorUserProfileId),
     ).rejects.toThrow(ConflictException);
     expect(teamsRepository.save).not.toHaveBeenCalled();
   });
@@ -122,10 +131,10 @@ describe('TeamsService', () => {
   it('deactivates instead of deleting a team with membership history', async () => {
     const team = createTeam();
     teamsRepository.findOne.mockResolvedValue(team);
-    teamsRepository.save.mockImplementation((value) => Promise.resolve(value));
+    teamsRepository.save.mockResolvedValue(team);
     teamMembersRepository.exists.mockResolvedValue(true);
 
-    await service.remove(teamId);
+    await service.remove(teamId, actorUserProfileId);
 
     expect(team.status).toBe(TeamStatus.INACTIVE);
     expect(teamsRepository.save).toHaveBeenCalledWith(team);
@@ -168,8 +177,17 @@ describe('TeamsService', () => {
         callback(manager),
     );
 
-    await expect(service.addMember(teamId, competitorId)).resolves.toBe(member);
+    await expect(
+      service.addMember(teamId, competitorId, actorUserProfileId),
+    ).resolves.toBe(member);
     expect(transactionalMembers.save).toHaveBeenCalledWith(member);
+    expect(auditService.recordEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        actorUserProfileId,
+        action: 'TEAM_MEMBER_ADDED',
+      }),
+      manager,
+    );
   });
 
   it('rejects adding a member to an inactive team', async () => {
@@ -187,9 +205,9 @@ describe('TeamsService', () => {
         callback(manager),
     );
 
-    await expect(service.addMember(teamId, competitorId)).rejects.toThrow(
-      'cannot receive new members',
-    );
+    await expect(
+      service.addMember(teamId, competitorId, actorUserProfileId),
+    ).rejects.toThrow('cannot receive new members');
   });
 
   it('rejects a member when the team has reached its configured maximum', async () => {
@@ -212,9 +230,9 @@ describe('TeamsService', () => {
         callback(manager),
     );
 
-    await expect(service.addMember(teamId, competitorId)).rejects.toThrow(
-      'has reached its maximum of 2 active members',
-    );
+    await expect(
+      service.addMember(teamId, competitorId, actorUserProfileId),
+    ).rejects.toThrow('has reached its maximum of 2 active members');
   });
 
   it('returns not found when removing a membership that is not active', async () => {
@@ -230,8 +248,8 @@ describe('TeamsService', () => {
         callback(manager),
     );
 
-    await expect(service.removeMember(teamId, competitorId)).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(
+      service.removeMember(teamId, competitorId, actorUserProfileId),
+    ).rejects.toThrow(NotFoundException);
   });
 });

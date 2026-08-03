@@ -12,6 +12,12 @@ export interface EnvironmentVariables extends Record<string, unknown> {
   DATABASE_PASSWORD: string;
   DATABASE_SSL: boolean;
   TEAM_MAX_MEMBERS: number;
+  KEYCLOAK_BASE_URL: string;
+  KEYCLOAK_REALM: string;
+  KEYCLOAK_ISSUER: string;
+  KEYCLOAK_JWKS_URI: string;
+  KEYCLOAK_CLIENT_ID: string;
+  KEYCLOAK_AUDIENCE: string | undefined;
 }
 
 function readRequiredString(
@@ -110,9 +116,72 @@ function readNodeEnvironment(config: Record<string, unknown>): NodeEnvironment {
   return value as NodeEnvironment;
 }
 
+function readRequiredUrl(config: Record<string, unknown>, key: string): string {
+  const value = readRequiredString(config, key);
+  let url: URL;
+
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`Environment variable ${key} must be a valid URL`);
+  }
+
+  if (
+    !['http:', 'https:'].includes(url.protocol) ||
+    url.username.length > 0 ||
+    url.password.length > 0 ||
+    url.search.length > 0 ||
+    url.hash.length > 0
+  ) {
+    throw new Error(
+      `Environment variable ${key} must be an HTTP(S) URL without credentials, query, or fragment`,
+    );
+  }
+
+  return url.toString().replace(/\/$/, '');
+}
+
+function readOptionalString(
+  config: Record<string, unknown>,
+  key: string,
+): string | undefined {
+  const value = config[key];
+
+  if (value === undefined || value === null || value === '') {
+    return undefined;
+  }
+
+  return readRequiredString(config, key);
+}
+
+function readKeycloakRealm(config: Record<string, unknown>): string {
+  const realm = readRequiredString(config, 'KEYCLOAK_REALM');
+
+  if (!/^[A-Za-z0-9._-]+$/.test(realm)) {
+    throw new Error(
+      'Environment variable KEYCLOAK_REALM may contain only letters, numbers, dots, underscores, and hyphens',
+    );
+  }
+
+  return realm;
+}
+
 export function validateEnvironment(
   config: Record<string, unknown>,
 ): EnvironmentVariables {
+  const keycloakBaseUrl = readRequiredUrl(config, 'KEYCLOAK_BASE_URL');
+  const keycloakRealm = readKeycloakRealm(config);
+  const expectedIssuer = `${keycloakBaseUrl}/realms/${keycloakRealm}`;
+  const keycloakIssuer = readRequiredUrl(config, 'KEYCLOAK_ISSUER');
+
+  if (keycloakIssuer !== expectedIssuer) {
+    throw new Error(
+      `Environment variable KEYCLOAK_ISSUER must equal ${expectedIssuer}`,
+    );
+  }
+
+  const keycloakJwksUri = readRequiredUrl(config, 'KEYCLOAK_JWKS_URI');
+
   return {
     NODE_ENV: readNodeEnvironment(config),
     PORT: readInteger(config, 'PORT', 3000),
@@ -123,5 +192,11 @@ export function validateEnvironment(
     DATABASE_PASSWORD: readRequiredString(config, 'DATABASE_PASSWORD'),
     DATABASE_SSL: readBoolean(config, 'DATABASE_SSL', false),
     TEAM_MAX_MEMBERS: readPositiveInteger(config, 'TEAM_MAX_MEMBERS', 10, 100),
+    KEYCLOAK_BASE_URL: keycloakBaseUrl,
+    KEYCLOAK_REALM: keycloakRealm,
+    KEYCLOAK_ISSUER: keycloakIssuer,
+    KEYCLOAK_JWKS_URI: keycloakJwksUri,
+    KEYCLOAK_CLIENT_ID: readRequiredString(config, 'KEYCLOAK_CLIENT_ID'),
+    KEYCLOAK_AUDIENCE: readOptionalString(config, 'KEYCLOAK_AUDIENCE'),
   };
 }
