@@ -334,7 +334,8 @@ team row is locked. The corresponding strategy for registrations and results is
 
 - Use reviewed TypeORM migrations; never rely on production `synchronize: true`.
 - Keep domain seeds separate from migrations.
-- Seed the required competitors, teams, races, and completed results reproducibly.
+- Seed the required competitors, teams, races, registrations, and completed results
+  reproducibly with fixed identifiers and one transaction.
 - Provision demo identities and roles through Keycloak realm configuration, not
   PostgreSQL application seeds.
 - Do not place real credentials in migrations, seeds, or realm exports.
@@ -342,7 +343,11 @@ team row is locked. The corresponding strategy for registrations and results is
 Competitor, team/membership, race, registration, and result migrations exist. Race
 organizer, registration actor, and result recorder columns are temporarily nullable
 until authenticated local user profiles are introduced; the API does not accept
-client-supplied actor identities. Seeds do not currently exist.
+client-supplied actor identities. The domain demonstration seed creates nine
+competitors, two teams with six memberships, three races, and five approved
+registrations/results for the completed race. It creates no `UserProfile`; nullable
+organizer/actor fields remain null so Keycloak and lazy authenticated provisioning
+remain the only identity sources.
 
 The standings increment requires no migration: every score and tie-breaker is
 derivable from existing race status, result status/position/time, registration

@@ -1,8 +1,8 @@
 {
   "info": {
     "_postman_id": "86d98d95-2de2-44ae-8b80-57f26a6d7d91",
-    "name": "Race Management API - CRUD actual",
-    "description": "Pruebas del comportamiento actualmente implementado para competidores, equipos y membresías. La colección no incluye autorización porque los controladores actuales no tienen guards.",
+    "name": "Race Management API - Suite completa",
+    "description": "Suite modular de contrato, validación, autorización y flujo de negocio para todos los endpoints implementados. Ejecute la colección en el orden definido.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -19,6 +19,10 @@
           "if (pm.response.code === 204) {",
           "  pm.test('204 response has no body', function () {",
           "    pm.expect(pm.response.text()).to.eql('');",
+          "  });",
+          "} else if (pm.info.requestName === '[200] Consultar raíz del API') {",
+          "  pm.test('Root response is plain text', function () {",
+          "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/plain');",
           "  });",
           "} else {",
           "  pm.test('Content-Type is application/json', function () {",
@@ -37,14 +41,30 @@
           "    pm.expect(Number.isNaN(Date.parse(errorBody.timestamp))).to.be.false;",
           "    pm.expect(errorBody.path).to.be.a('string');",
           "  });",
+          "}",
+          "",
+          "const expectedStatus = pm.info.requestName.match(/^\\[(\\d{3})\\]/);",
+          "if (expectedStatus) {",
+          "  pm.test(`Status code is ${expectedStatus[1]}`, function () {",
+          "    pm.response.to.have.status(Number(expectedStatus[1]));",
+          "  });",
           "}"
         ]
       }
     }
   ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{administratorAccessToken}}", "type": "string" }
+    ]
+  },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000/api/v1", "type": "string" },
     { "key": "maxResponseTimeMs", "value": "2000", "type": "string" },
+    { "key": "administratorAccessToken", "value": "", "type": "string" },
+    { "key": "organizerAccessToken", "value": "", "type": "string" },
+    { "key": "viewerAccessToken", "value": "", "type": "string" },
     { "key": "competitorRunId", "value": "", "type": "string" },
     { "key": "competitorId", "value": "", "type": "string" },
     { "key": "competitorDeleteId", "value": "", "type": "string" },
@@ -55,7 +75,20 @@
     { "key": "membershipId", "value": "", "type": "string" },
     { "key": "conflictTeamId", "value": "", "type": "string" },
     { "key": "missingCompetitorId", "value": "00000000-0000-4000-8000-000000000001", "type": "string" },
-    { "key": "missingTeamId", "value": "00000000-0000-4000-8000-000000000002", "type": "string" }
+    { "key": "missingTeamId", "value": "00000000-0000-4000-8000-000000000002", "type": "string" },
+    { "key": "currentUserProfileId", "value": "", "type": "string" },
+    { "key": "raceId", "value": "", "type": "string" },
+    { "key": "organizerRaceId", "value": "", "type": "string" },
+    { "key": "raceDeleteId", "value": "", "type": "string" },
+    { "key": "firstRegistrationId", "value": "", "type": "string" },
+    { "key": "secondRegistrationId", "value": "", "type": "string" },
+    { "key": "rejectCompetitorId", "value": "", "type": "string" },
+    { "key": "cancelCompetitorId", "value": "", "type": "string" },
+    { "key": "rejectRegistrationId", "value": "", "type": "string" },
+    { "key": "cancelRegistrationId", "value": "", "type": "string" },
+    { "key": "firstResultId", "value": "", "type": "string" },
+    { "key": "secondResultId", "value": "", "type": "string" },
+    { "key": "auditLogId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -1036,6 +1069,317 @@
               "request": { "method": "POST", "header": [], "url": "{{baseUrl}}/teams/{{conflictTeamId}}/members/{{teamMemberCompetitorId}}" }
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Sistema",
+      "item": [
+        {
+          "name": "[200] Consultar raíz del API",
+          "request": { "method": "GET", "header": [], "auth": { "type": "noauth" }, "url": "{{baseUrl}}" }
+        }
+      ]
+    },
+    {
+      "name": "Autenticación y autorización",
+      "description": "Pruebas con tokens reales de Keycloak. Los tokens se cargan en el ambiente y nunca se versionan.",
+      "item": [
+        {
+          "name": "[401] Rechazar solicitud sin token",
+          "request": { "method": "GET", "header": [], "auth": { "type": "noauth" }, "url": "{{baseUrl}}/standings" }
+        },
+        {
+          "name": "[200] Consultar identidad validada como viewer",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "[200] Consultar perfil local del administrador",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.test('Profile does not expose credentials', function () {",
+                "  pm.expect(body).not.to.have.any.keys('password', 'passwordHash', 'accessToken', 'refreshToken');",
+                "});",
+                "pm.collectionVariables.set('currentUserProfileId', body.id);"
+              ]
+            }
+          }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users/me" }
+        },
+        {
+          "name": "[403] Viewer no puede crear carreras",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Forbidden Viewer Race\",\n  \"scheduledAt\": \"2035-12-10T14:00:00.000Z\",\n  \"startLocation\": \"Start\",\n  \"finishLocation\": \"Finish\",\n  \"distanceMeters\": 1000,\n  \"maxParticipants\": 4,\n  \"type\": \"INDIVIDUAL\",\n  \"registrationDeadline\": \"2035-12-09T14:00:00.000Z\"\n}" },
+            "url": "{{baseUrl}}/races"
+          }
+        },
+        {
+          "name": "[201] Organizador puede crear carreras",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('organizerRaceId', pm.response.json().id);"] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Organizer Postman Race {{$randomUUID}}\",\n  \"scheduledAt\": \"2035-12-11T14:00:00.000Z\",\n  \"startLocation\": \"Start\",\n  \"finishLocation\": \"Finish\",\n  \"distanceMeters\": 1000,\n  \"maxParticipants\": 4,\n  \"type\": \"INDIVIDUAL\",\n  \"registrationDeadline\": \"2035-12-10T14:00:00.000Z\"\n}" },
+            "url": "{{baseUrl}}/races"
+          }
+        },
+        {
+          "name": "[204] Organizador puede eliminar carrera sin historial",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{organizerAccessToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/races/{{organizerRaceId}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Usuarios",
+      "item": [
+        {
+          "name": "[200] Listar perfiles como administrador",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users?page=1&limit=20&status=ACTIVE&sortBy=createdAt&sortOrder=desc" }
+        },
+        {
+          "name": "[200] Consultar perfil por ID",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/users/{{currentUserProfileId}}" }
+        },
+        {
+          "name": "[409] Impedir que administrador se deshabilite a sí mismo",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"DISABLED\"\n}" },
+            "url": "{{baseUrl}}/users/{{currentUserProfileId}}/status"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Carreras",
+      "description": "Crea la carrera principal que consumen las carpetas de inscripciones y resultados.",
+      "item": [
+        {
+          "name": "[201] Crear carrera principal",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": ["const body = pm.response.json();", "pm.collectionVariables.set('raceId', body.id);"] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Workflow {{$randomUUID}}\",\n  \"description\": \"End-to-end Postman race\",\n  \"scheduledAt\": \"2035-11-20T14:00:00.000Z\",\n  \"startLocation\": \"EIA Start\",\n  \"finishLocation\": \"EIA Finish\",\n  \"distanceMeters\": 1500,\n  \"maxParticipants\": 8,\n  \"type\": \"INDIVIDUAL\",\n  \"registrationDeadline\": \"2035-11-18T23:59:59.000Z\"\n}" },
+            "url": "{{baseUrl}}/races"
+          }
+        },
+        {
+          "name": "[200] Listar carreras con filtros",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/races?page=1&limit=20&status=DRAFT&type=INDIVIDUAL&sortBy=scheduledAt&sortOrder=asc" }
+        },
+        {
+          "name": "[200] Consultar carrera por ID",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/races/{{raceId}}" }
+        },
+        {
+          "name": "[200] Reemplazar carrera en borrador",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Postman Workflow Updated\",\n  \"description\": \"Updated before opening\",\n  \"scheduledAt\": \"2035-11-20T14:00:00.000Z\",\n  \"startLocation\": \"EIA Start Gate\",\n  \"finishLocation\": \"EIA Finish Gate\",\n  \"distanceMeters\": 1600,\n  \"maxParticipants\": 8,\n  \"type\": \"INDIVIDUAL\",\n  \"registrationDeadline\": \"2035-11-18T23:59:59.000Z\"\n}" },
+            "url": "{{baseUrl}}/races/{{raceId}}"
+          }
+        },
+        {
+          "name": "[200] Abrir carrera para inscripciones",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"OPEN_FOR_REGISTRATION\"\n}" },
+            "url": "{{baseUrl}}/races/{{raceId}}/status"
+          }
+        },
+        {
+          "name": "[201] Crear carrera para eliminación",
+          "event": [{
+            "listen": "test",
+            "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('raceDeleteId', pm.response.json().id);"] }
+          }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Disposable Postman Race {{$randomUUID}}\",\n  \"scheduledAt\": \"2035-12-20T14:00:00.000Z\",\n  \"startLocation\": \"Start\",\n  \"finishLocation\": \"Finish\",\n  \"distanceMeters\": 900,\n  \"maxParticipants\": 4,\n  \"type\": \"INDIVIDUAL\",\n  \"registrationDeadline\": \"2035-12-19T14:00:00.000Z\"\n}" },
+            "url": "{{baseUrl}}/races"
+          }
+        },
+        {
+          "name": "[204] Eliminar carrera sin historial",
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/races/{{raceDeleteId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Inscripciones",
+      "item": [
+        {
+          "name": "[201] Crear competidor auxiliar para rechazo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('rejectCompetitorId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Reject Helper\",\n  \"nickname\": \"Reject-{{$randomUUID}}\",\n  \"type\": \"DWARF\",\n  \"dateOfBirth\": \"1994-01-01\",\n  \"weight\": 75,\n  \"height\": 130,\n  \"origin\": \"EIA\",\n  \"status\": \"ACTIVE\"\n}" },
+            "url": "{{baseUrl}}/competitors"
+          }
+        },
+        {
+          "name": "[201] Crear competidor auxiliar para cancelación",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('cancelCompetitorId', pm.response.json().id);"] } }],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Cancel Helper\",\n  \"nickname\": \"Cancel-{{$randomUUID}}\",\n  \"type\": \"DWARF\",\n  \"dateOfBirth\": \"1995-01-01\",\n  \"weight\": 76,\n  \"height\": 131,\n  \"origin\": \"EIA\",\n  \"status\": \"ACTIVE\"\n}" },
+            "url": "{{baseUrl}}/competitors"
+          }
+        },
+        {
+          "name": "[201] Inscribir primer competidor",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('firstRegistrationId', pm.response.json().id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"competitorId\": \"{{competitorId}}\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/registrations" }
+        },
+        {
+          "name": "[201] Inscribir segundo competidor",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('secondRegistrationId', pm.response.json().id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"competitorId\": \"{{teamMemberCompetitorId}}\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/registrations" }
+        },
+        {
+          "name": "[201] Crear inscripción para rechazo",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('rejectRegistrationId', pm.response.json().id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"competitorId\": \"{{rejectCompetitorId}}\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/registrations" }
+        },
+        {
+          "name": "[201] Crear inscripción para cancelación",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('cancelRegistrationId', pm.response.json().id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"competitorId\": \"{{cancelCompetitorId}}\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/registrations" }
+        },
+        {
+          "name": "[200] Listar inscripciones de carrera",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/races/{{raceId}}/registrations?page=1&limit=20&status=PENDING" }
+        },
+        {
+          "name": "[200] Consultar inscripción por ID",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/registrations/{{firstRegistrationId}}" }
+        },
+        {
+          "name": "[200] Aprobar primera inscripción",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"startingPosition\": 1\n}" }, "url": "{{baseUrl}}/registrations/{{firstRegistrationId}}/approve" }
+        },
+        {
+          "name": "[200] Aprobar segunda inscripción",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"startingPosition\": 2\n}" }, "url": "{{baseUrl}}/registrations/{{secondRegistrationId}}/approve" }
+        },
+        {
+          "name": "[200] Rechazar inscripción con razón",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Academic Postman rejection scenario\"\n}" }, "url": "{{baseUrl}}/registrations/{{rejectRegistrationId}}/reject" }
+        },
+        {
+          "name": "[204] Cancelar inscripción pendiente",
+          "request": { "method": "DELETE", "header": [], "url": "{{baseUrl}}/registrations/{{cancelRegistrationId}}" }
+        },
+        {
+          "name": "[200] Cerrar carrera preparada",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"CLOSED\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/status" }
+        },
+        {
+          "name": "[200] Iniciar carrera preparada",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"IN_PROGRESS\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/status" }
+        }
+      ]
+    },
+    {
+      "name": "Resultados",
+      "item": [
+        {
+          "name": "[201] Registrar ganador",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('firstResultId', pm.response.json().id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"registrationId\": \"{{firstRegistrationId}}\",\n  \"status\": \"FINISHED\",\n  \"finalPosition\": 1,\n  \"rawTimeMs\": 72000,\n  \"penaltyTimeMs\": 0\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/results" }
+        },
+        {
+          "name": "[201] Registrar segundo lugar",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.collectionVariables.set('secondResultId', pm.response.json().id);"] } }],
+          "request": { "method": "POST", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"registrationId\": \"{{secondRegistrationId}}\",\n  \"status\": \"FINISHED\",\n  \"finalPosition\": 2,\n  \"rawTimeMs\": 74000,\n  \"penaltyTimeMs\": 250\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/results" }
+        },
+        {
+          "name": "[200] Completar carrera con resultados oficiales",
+          "request": { "method": "PATCH", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"COMPLETED\"\n}" }, "url": "{{baseUrl}}/races/{{raceId}}/status" }
+        },
+        {
+          "name": "[200] Listar resultados oficiales",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/races/{{raceId}}/results?page=1&limit=20&status=FINISHED" }
+        },
+        {
+          "name": "[200] Consultar resultado por ID",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/results/{{firstResultId}}" }
+        },
+        {
+          "name": "[200] Corregir resultado oficial",
+          "request": { "method": "PUT", "header": [{ "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"status\": \"FINISHED\",\n  \"finalPosition\": 2,\n  \"rawTimeMs\": 73500,\n  \"penaltyTimeMs\": 250,\n  \"notes\": \"Official Postman correction\"\n}" }, "url": "{{baseUrl}}/results/{{secondResultId}}" }
+        }
+      ]
+    },
+    {
+      "name": "Clasificaciones",
+      "item": [
+        { "name": "[200] Consultar clasificación general", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/standings?page=1&limit=20&sortBy=position&sortOrder=asc" } },
+        { "name": "[200] Consultar clasificación individual", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/standings/competitors?page=1&limit=20&status=ACTIVE&sortBy=totalPoints&sortOrder=desc" } },
+        { "name": "[200] Consultar clasificación por equipos", "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/standings/teams?page=1&limit=20&status=ACTIVE&sortBy=position&sortOrder=asc" } }
+      ]
+    },
+    {
+      "name": "Auditoría",
+      "item": [
+        {
+          "name": "[200] Listar eventos de auditoría",
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.test('At least one audit event exists', function () { pm.expect(body.items.length).to.be.above(0); });",
+                "pm.collectionVariables.set('auditLogId', body.items[0].id);"
+              ]
+            }
+          }],
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/audit-logs?page=1&limit=20" }
+        },
+        {
+          "name": "[200] Consultar evento de auditoría por ID",
+          "request": { "method": "GET", "header": [], "url": "{{baseUrl}}/audit-logs/{{auditLogId}}" }
+        },
+        {
+          "name": "[403] Viewer no puede consultar auditoría",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{viewerAccessToken}}", "type": "string" }] },
+            "url": "{{baseUrl}}/audit-logs"
+          }
         }
       ]
     }

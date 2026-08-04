@@ -51,4 +51,6 @@ relevant unit, integration, and E2E tests are present.
 
 ## Next Increment
 
-The next safe increment is reproducible domain seeds or frontend work.
+Reproducible domain demonstration seeds are implemented with fixed UUIDs,
+transactional idempotency, migration preflight, and PostgreSQL E2E verification.
+The next major increment is frontend work.

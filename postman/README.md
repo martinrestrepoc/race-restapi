@@ -1,75 +1,106 @@
 # Colección Postman del API
 
-Esta carpeta contiene pruebas importables del comportamiento actualmente
-implementado en NestJS:
-
-- CRUD, filtros, paginación y estados de competidores.
-- CRUD, filtros, paginación y estados de equipos.
-- Creación, finalización, historial y conflictos de membresías.
-- Validaciones de DTO, recursos inexistentes y conflictos de negocio.
+La estrategia elegida es una sola colección versionada, dividida en carpetas por
+módulo. Así la autenticación, las variables encadenadas, el contrato global de
+errores y el flujo carrera-inscripción-resultado-clasificación se definen una sola
+vez sin duplicar configuración.
 
 ## Archivos
 
-- `project-api.postman_collection.json`: colección Postman v2.1.
-- `local.postman_environment.json`: ambiente para el API local.
+- `project-api.postman_collection.json`: colección Postman v2.1 con pruebas.
+- `local.postman_environment.json`: ambiente local sin tokens ni secretos.
 
-## Importación y ejecución
+La colección cubre los endpoints implementados de sistema, autenticación, usuarios,
+competidores, equipos/membresías, carreras, inscripciones, resultados,
+clasificaciones y auditoría. Incluye rutas felices, validación `400`, autenticación
+`401`, autorización `403`, recursos inexistentes `404`, conflictos `409`,
+paginación, filtros y transiciones de estado.
 
-1. Levante PostgreSQL y el backend.
-2. En Postman, seleccione **Import** e importe los dos archivos JSON.
-3. Active el ambiente **Race Management API - Local**.
-4. Ejecute la colección completa con el Collection Runner, respetando el orden
-   definido.
+## Preparación
 
-El ambiente configura:
+1. Inicie PostgreSQL, Keycloak y el backend.
+2. Aplique migraciones y, opcionalmente, el dataset demostrativo:
 
-```text
-baseUrl=http://localhost:3000/api/v1
-maxResponseTimeMs=2000
-```
+   ```bash
+   cd backend
+   npm run migration:run
+   npm run seed
+   ```
 
-Todas las solicitudes usan `{{baseUrl}}`. Puede cambiar
-`maxResponseTimeMs` si el entorno local necesita un umbral diferente.
+3. Importe ambos JSON en Postman.
+4. Seleccione **Race Management API - Local**.
 
-## Variables automáticas
+La colección utiliza el cliente público de desarrollo `race-postman`, configurado
+con Authorization Code y PKCE S256. No usa Client Credentials, Direct Access Grants
+ni secretos de cliente.
 
-La colección genera sufijos aleatorios para evitar conflictos entre ejecuciones y
-guarda automáticamente los identificadores creados como variables de colección:
+## Obtener los tres tokens
 
-- `competitorId`
-- `competitorDeleteId`
-- `teamId`
-- `teamDeleteId`
-- `teamMemberCompetitorId`
-- `membershipId`
-- `conflictTeamId`
+En Postman, use **Get New Access Token** con estos valores:
 
-La carpeta de equipos crea su propio competidor auxiliar, por lo que puede probar
-sus membresías sin reutilizar manualmente un ID de la carpeta de competidores.
+| Campo | Valor |
+| --- | --- |
+| Grant Type | Authorization Code (With PKCE) |
+| Callback URL | `https://oauth.pstmn.io/v1/callback` |
+| Auth URL | `{{keycloakBaseUrl}}/realms/{{keycloakRealm}}/protocol/openid-connect/auth` |
+| Access Token URL | `{{keycloakBaseUrl}}/realms/{{keycloakRealm}}/protocol/openid-connect/token` |
+| Client ID | `{{postmanClientId}}` (`race-postman`) |
+| Client Secret | vacío |
+| Code Challenge Method | SHA-256 |
+| Scope | `openid profile email` |
 
-## Organización
+Repita el inicio de sesión con cada identidad de demostración y copie únicamente el
+access token al valor **Current value** correspondiente del ambiente:
 
-Cada recurso se divide en:
+- `administratorAccessToken`
+- `organizerAccessToken`
+- `viewerAccessToken`
 
-- `Happy path`
-- `Validaciones`
-- `Recursos inexistentes`
-- `Conflictos`
+No escriba tokens en **Initial value**, no exporte el ambiente después de cargarlos
+y no los confirme en Git. Los tokens expiran; renuévelos antes de otra ejecución.
 
-No existe una carpeta de autorización porque los controladores actuales no tienen
-guards ni endpoints protegidos. Agregar expectativas `401` o `403` en este momento
-inventaría un comportamiento que el backend todavía no implementa.
+El import de realm crea `race-postman` solo en una base de Keycloak nueva. Keycloak
+no reaplica cambios del JSON sobre un realm persistido: en un entorno local ya
+existente, cree el cliente con la misma configuración mediante la consola de
+administración o reinicialice deliberadamente el volumen solo si puede descartar
+sus datos locales.
 
-## Consideraciones
+## Ejecución
 
-- La colección crea datos reales en la base configurada.
-- Los recursos creados específicamente para comprobar eliminación física se
-  eliminan durante la ejecución.
-- Los recursos principales y los historiales de membresía permanecen para poder
-  inspeccionarlos después.
-- Los mensajes de `404` y `409`, los campos de respuesta y las restricciones usadas
-  por los scripts provienen de los controladores, DTO, servicios y filtro global de
-  excepciones actuales.
-- Todos los errores se validan contra la forma
-  `timestamp`, `statusCode`, `error`, `message` y `path`. Los errores de DTO también
-  verifican `details`.
+Use Collection Runner y ejecute la colección completa en el orden exportado, con
+iteración única y sin paralelismo. El orden crea y captura automáticamente los IDs
+que necesitan las solicitudes posteriores.
+
+Las pruebas de colección verifican para todas las respuestas:
+
+- tiempo máximo configurable mediante `maxResponseTimeMs`;
+- código esperado indicado como prefijo `[200]`, `[201]`, `[204]`, etc.;
+- JSON y `Content-Type` donde corresponde;
+- cuerpo vacío para `204`;
+- contrato global para todos los errores: `timestamp`, `statusCode`, `error`,
+  `message` y `path`.
+
+Los escenarios existentes de competidores y equipos agregan aserciones específicas
+sobre DTOs, filtros, historiales, campos de validación y mensajes de conflicto.
+
+## Variables encadenadas
+
+La colección genera datos con sufijos aleatorios y conserva como variables de
+colección los IDs de competidores, equipos, carrera, inscripciones, resultados,
+perfil actual y auditoría. No es necesario copiar identificadores manualmente.
+
+Los tres tokens permanecen en el ambiente. El token de administrador es la
+autorización heredada por defecto; las pruebas de viewer lo reemplazan de forma
+explícita y la prueba de `401` usa `No Auth`.
+
+## Efectos sobre datos
+
+- Ejecute la colección solo contra desarrollo o una base de pruebas.
+- La colección crea datos reales y eventos de auditoría.
+- Los recursos desechables dedicados a comprobar `DELETE` se eliminan.
+- El flujo principal y algunos historiales permanecen para inspección posterior.
+- Los UUID aleatorios evitan conflictos entre ejecuciones, pero cada ejecución
+  agrega un nuevo flujo principal.
+
+Para una corrida totalmente limpia, use el PostgreSQL aislado de
+`compose.test.yml` o reinicie únicamente una base de pruebas que pueda descartarse.

@@ -18,20 +18,22 @@ suite uses disposable RSA keys and a local JWKS
 server to verify signature, issuer, audience, expiration, token type, role denial,
 and `401` versus `403`. Unit and PostgreSQL-backed E2E tests cover lazy local-profile
 provisioning, idempotency, disabled-profile behavior, actor propagation, audit
-filter/detail reads, and administrator-only audit authorization. Seed tests remain
-pending. Profile-administration E2E coverage verifies filtering, detail reads,
+filter/detail reads, and administrator-only audit authorization.
+Profile-administration E2E coverage verifies filtering, detail reads,
 transactional status audit, viewer denial, and administrator self-disable
 prevention. Standings unit and PostgreSQL-backed E2E coverage verifies the official
 points table, zero-point outcomes, completed-race boundary, every tie-breaker,
 shared positions, direct team participation, correction visibility, pagination,
 filtering, deterministic sorting, all read roles, missing authentication, and
-disabled-profile denial.
+disabled-profile denial. Demonstration-seed unit and PostgreSQL E2E coverage verifies
+the required type counts, teams/memberships, three race states, official completed
+results, standings output, idempotency, and absence of local identity records.
 
-The current unit suite contains 99 tests. Its production-code coverage is 82.36%
-of statements, 71.24% of branches, 56.73% of functions, and 82.30% of lines.
+The current unit suite contains 100 tests. Its production-code coverage is 82.84%
+of statements, 71.39% of branches, 58.75% of functions, and 82.82% of lines.
 Coverage deliberately excludes tests, NestJS module wiring, migrations, the
 TypeORM CLI data source, and application bootstrap files. Global minimums enforced
-by Jest are 75% statements, 65% branches, 45% functions, and 75% lines. The 27 E2E
+by Jest are 75% statements, 65% branches, 45% functions, and 75% lines. The 28 E2E
 tests and 9 dedicated security tests run as separate suites and are not combined
 into these instrumentation percentages.
 
@@ -250,6 +252,7 @@ npm run format
 npm run migration:run
 npm run migration:revert
 npm run migration:show
+npm run seed
 ```
 
 `npm run lint` and `npm run format` currently write fixes. `npm run build` is also
@@ -263,11 +266,12 @@ membership tables; it must never target development or production data. The root
 default. Its data directory is a `tmpfs` and its static credentials are exclusively
 for local tests.
 
-No separate integration-test, seed, or container-test script exists.
+No separate integration-test or container-test script exists. `npm run seed` loads
+the independently defined, transactional demonstration dataset after checking that
+no migrations are pending.
 
 ```text
 Recommended script - not currently configured: test:integration
-Recommended script - not currently configured: seed
 ```
 
 Do not add scripts until the corresponding implementation and environment exist.

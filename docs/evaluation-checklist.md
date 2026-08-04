@@ -29,7 +29,8 @@ are intentionally maintained only here.
 - [ ] Statistics and standings remain consistent after result changes.
 - [x] The official standings table, tie-breakers, shared positions, and direct-team
       aggregation are enforced from authoritative official results.
-- [ ] The required initial demonstration data can be reproduced.
+- [x] The required initial domain demonstration data can be reproduced independently
+      from migrations and contains no identity credentials.
 - [ ] Undefined rules are resolved and documented before implementation.
 
 ## Graphical Interface and User Experience
@@ -88,7 +89,7 @@ are intentionally maintained only here.
 - [ ] TypeORM entities match the reviewed conceptual model.
 - [ ] TypeORM migrations are available and reviewed.
 - [ ] Production does not use `synchronize: true`.
-- [ ] Seeds are separate from migrations and contain no credentials.
+- [x] Seeds are separate from migrations and contain no credentials.
 - [ ] The application database uses a named persistent volume.
 - [ ] Data remains after service/container restart.
 - [ ] Multi-step and concurrency-sensitive writes are atomic.
@@ -128,7 +129,8 @@ are intentionally maintained only here.
 - [ ] Security, API, testing, architecture, and business-rule documents are current.
 - [ ] A non-secret `.env.example` exists.
 - [ ] No secret or credential is committed.
-- [ ] A Postman or Insomnia collection verifies the API independently of the UI.
+- [x] A modular Postman collection covers every implemented API endpoint,
+      authorization boundaries, validation, conflicts, and the complete race flow.
 - [ ] Git history contains meaningful contributions from every team member.
 - [ ] Branches and pull requests show a reviewable workflow.
 - [ ] All team members understand the architecture and main application flow.
@@ -175,7 +177,7 @@ At documentation creation time:
 - [x] npm, ESLint, and Prettier configuration exist.
 - [x] Competitor, team, and historical-membership implementations exist.
 - [x] TypeORM/PostgreSQL configuration and migration tooling exist.
-- [x] Competitor and team/membership migrations exist; seeds remain pending.
+- [x] Competitor and team/membership migrations and reproducible domain seeds exist.
 - [x] Local-profile provisioning, status enforcement, and authenticated actor
       attribution exist.
 - [x] Administrators can list profiles and manage local status without changing

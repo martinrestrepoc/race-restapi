@@ -13,7 +13,8 @@ are implemented. NestJS now validates Keycloak access tokens and exposes a prote
 identity endpoints; domain-wide role policies, lazy local profiles, authenticated
 actor attribution, mutation audit events, and administrator audit queries are
 implemented. Administrators can also list profiles and manage their local status.
-Standings, domain seeds, and the frontend application remain pending.
+Standings and reproducible domain demonstration seeds are implemented. The
+frontend application remains pending.
 
 ## Objective
 
@@ -24,7 +25,7 @@ runs reproducibly through Docker Compose.
 ## Team Members
 
 ```text
-Decision pending
+Sebastian Giraldo, Miguel Zuleta y Martin Restrepo
 ```
 
 ## Main Capabilities
@@ -65,8 +66,8 @@ Current repository state:
   image, persistent PostgreSQL storage, a reproducible realm, runtime token
   validation, reusable authentication/role/profile guards, domain-controller role
   policies, lazy local profiles, and `GET /api/v1/users/me` are present.
-- A Compose stack for NestJS, PostgreSQL, and Keycloak is configured. Domain seeds
-  and the frontend application are not present.
+- A Compose stack for NestJS, PostgreSQL, and Keycloak is configured. Reproducible
+  domain demonstration seeds are present; the frontend application is not.
 - No Node version file or package `engines` constraint is present. The inspected
   development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
 
@@ -203,11 +204,24 @@ npm run migration:revert
 ```
 
 The competitor, team/membership, race, registration, and result schema migrations
-are present. Seeds do not exist. Academic
-demonstration data must eventually include the minimum dataset in
-[Project requirements](docs/project-requirements.md), without embedding real
-credentials. Keycloak demo accounts must be provisioned through a reproducible
-realm setup rather than application-database seeds.
+are present. After applying them, load or refresh the deterministic domain demo
+dataset with:
+
+```bash
+cd backend
+npm run seed
+```
+
+The seed runs in one transaction and is idempotent through fixed UUIDs. It creates
+five dwarfs, two camels, two medium competitors, two teams with memberships, three
+races in `DRAFT`, `OPEN_FOR_REGISTRATION`, and `COMPLETED`, plus five approved
+registrations and official results for the completed race. Re-running the command
+refreshes those same demo records without duplication. It refuses to run while
+migrations are pending.
+
+No `UserProfile`, Keycloak identity, role, credential, token, or secret is created.
+Keycloak demo accounts remain provisioned exclusively through the reproducible
+realm setup.
 
 ## Tests and Quality
 
@@ -228,11 +242,12 @@ including the complete race/registration/result workflow, concurrent duplicate
 registration, result correction, audit attribution, and role boundaries. The
 security suite uses disposable RSA keys and a local JWKS issuer to cover signature,
 issuer, audience, expiration, token type, role, `401`, and `403` behavior without
-bypassing guards. The unit suite currently has 85 tests and enforces global coverage
-minimums of 75% statements, 65% branches, 45% functions, and 75% lines; E2E and
-security suites remain separate from that measurement. E2E requires
-an isolated database whose name ends in `_test`; the suite applies migrations and
-may clear competitor, team, and membership data. See
+bypassing guards. Seed tests verify dataset composition, idempotency, standings,
+and the absence of identity records. The unit suite contains 100 tests and enforces
+global coverage minimums of 75% statements, 65% branches, 45% functions, and 75%
+lines; the 28 E2E tests and security suite remain separate from that measurement.
+E2E requires an isolated database whose name ends in `_test`; the suite applies
+migrations and may clear domain and local-profile data. See
 [Testing](docs/testing.md) for the required matrix.
 
 Start the disposable PostgreSQL test database from the repository root:
@@ -321,6 +336,23 @@ from the root `.env` and are never stored in the realm JSON:
 
 The public `race-frontend` client uses Authorization Code Flow with mandatory PKCE
 S256 and has Direct Access Grants disabled. The `race-backend` client is bearer-only.
+The development-only `race-postman` public client uses Authorization Code Flow with
+PKCE S256 and Postman's HTTPS callback; it has no secret or password grant.
+
+## Postman API Verification
+
+The importable [Postman suite](postman/README.md) contains 85 requests organized by
+module and covers all 41 implemented method/path combinations, including the full
+race workflow and role boundaries. Import the collection and local environment,
+then obtain administrator, organizer, and viewer access tokens through the
+development `race-postman` PKCE client. Tokens remain empty secret environment
+values in Git.
+
+Validate collection structure and endpoint coverage without contacting the API:
+
+```bash
+node postman/validate-collection.mjs
+```
 
 Current and planned URLs:
 
@@ -347,10 +379,10 @@ Current and planned URLs:
 
 ## Known Limitations
 
-- Competitor, team, race, registration, result, and local-profile behavior is
-  implemented.
-- Standings are not implemented. Audit writes cover profile provisioning and
-  mutations to competitors, teams/memberships, races, registrations, and results;
+- Competitor, team, race, registration, result, standings, local-profile behavior,
+  and reproducible domain demonstration seeds are implemented.
+- Audit writes cover profile provisioning and mutations to competitors,
+  teams/memberships, races, registrations, and results;
   administrators can query them through `/api/v1/audit-logs`.
 - Token validation, documented role policies, and active-profile checks protect all
   implemented domain controllers. Audit reads and profile administration are
@@ -358,8 +390,8 @@ Current and planned URLs:
 - The current Compose topology includes NestJS, PostgreSQL, and Keycloak; the
   frontend container is pending.
 - The mandatory graphical frontend application is not implemented.
-- No domain seeds exist. Three development-only Keycloak demo identities are
-  provisioned reproducibly by realm import.
+- Domain seeds intentionally contain no identities. Three development-only
+  Keycloak demo identities are provisioned reproducibly by realm import.
 
 ## Future Improvements
 

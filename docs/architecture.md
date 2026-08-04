@@ -20,7 +20,8 @@ present. Local user profiles, competitor, team, historical-membership, race,
 registration, result, and audit persistence modules and migrations are implemented.
 The standings module derives individual and directly registered team rankings from
 official results with PostgreSQL aggregate/window queries; it stores no standings
-state. Domain seeds and the frontend application are not yet present. Audit
+state. Reproducible domain demonstration seeds are implemented independently from
+migrations; the frontend application is not yet present. Audit
 writes cover profile provisioning and implemented domain mutations, carry an
 authenticated profile actor, and are queryable only by administrators. The
 authentication module validates Keycloak tokens and provides
@@ -267,7 +268,9 @@ by the specialized endpoints rather than reimplementing scoring.
   locking. The exact strategy is `Decision pending`.
 
 Migration create/generate/run/revert/show scripts are configured against the shared
-TypeORM DataSource. Seed tooling is not yet configured.
+TypeORM DataSource. The separate `npm run seed` command requires all migrations to
+be current and loads fixed-ID demonstration data in one transaction. It contains no
+identity records and may be run repeatedly without creating duplicates.
 
 ## Docker Topology
 

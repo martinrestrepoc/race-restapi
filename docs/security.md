@@ -90,6 +90,12 @@ audience are `race-backend`. The imported public frontend client allows the loca
 Flow with PKCE S256. Production URLs require a separate environment-specific realm
 configuration.
 
+The reproducible development realm also defines a public `race-postman` client for
+manual API contract testing. It uses Authorization Code Flow with PKCE S256, allows
+only Postman's HTTPS OAuth callback, includes the `race-backend` audience, has no
+client secret, and disables implicit flow, Direct Access Grants, and service
+accounts. It is development tooling, not a production application client.
+
 ## Realm Roles or Client Roles
 
 The required roles may be modeled as realm roles or API-specific client roles.

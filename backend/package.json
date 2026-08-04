@@ -19,6 +19,7 @@
     "migration:run": "npm run typeorm -- migration:run -d src/database/typeorm.datasource.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/database/typeorm.datasource.ts",
     "migration:show": "npm run typeorm -- migration:show -d src/database/typeorm.datasource.ts",
+    "seed": "ts-node src/database/seeds/run-demo-seed.ts",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -90,6 +91,7 @@
       "!**/*.spec.ts",
       "!**/*.module.ts",
       "!database/migrations/**",
+      "!database/seeds/run-demo-seed.ts",
       "!database/typeorm.datasource.ts",
       "!main.ts",
       "!configure-application.ts"
