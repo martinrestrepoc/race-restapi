@@ -7,6 +7,7 @@ import { RegistrationsController } from '../registrations/registrations.controll
 import { ResultsController } from '../results/results.controller';
 import { AuditController } from '../audit/audit.controller';
 import { UsersController } from '../users/users.controller';
+import { StandingsController } from '../standings/standings.controller';
 
 function controllerRoles(controller: object): AppRole[] | undefined {
   return Reflect.getMetadata(ROLES_KEY, controller) as AppRole[] | undefined;
@@ -81,6 +82,15 @@ describe('Domain authorization policies', () => {
     expect(handlerRoles(prototype, 'findOne')).toBeUndefined();
     expect(handlerRoles(prototype, 'create')).toEqual(raceManagement);
     expect(handlerRoles(prototype, 'update')).toEqual(raceManagement);
+  });
+
+  it('allows all application roles to read every standings view', () => {
+    const prototype = StandingsController.prototype;
+
+    expect(controllerRoles(StandingsController)).toEqual(readRoles);
+    expect(handlerRoles(prototype, 'getOverall')).toBeUndefined();
+    expect(handlerRoles(prototype, 'getCompetitors')).toBeUndefined();
+    expect(handlerRoles(prototype, 'getTeams')).toBeUndefined();
   });
 
   it('restricts complete audit-log access to administrators', () => {

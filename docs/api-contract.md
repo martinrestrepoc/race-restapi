@@ -10,9 +10,10 @@ same topic. Their acceptance does not imply implementation.
 
 Competitor, team/membership, race, registration, result, and current-user profile
 endpoints, administrative profile management, and administrator audit queries are
-implemented. Standings remain proposed. Business constraints remain authoritative in
-[Business rules](business-rules.md). Identity and token endpoints belong to Keycloak,
-not this API.
+implemented. The three standings endpoints are also implemented as derived,
+read-only views. Business constraints remain authoritative in [Business
+rules](business-rules.md). Identity and token endpoints belong to Keycloak, not this
+API.
 
 Token validation and the protected `GET /api/v1/auth/me` endpoint are implemented.
 All implemented competitor, team, race, registration, and result endpoints enforce
@@ -99,7 +100,8 @@ state.
 
 ## Resource Endpoints
 
-The tables define the proposed surface, not implemented behavior.
+The tables define the API surface; the status section identifies implemented
+behavior and any remaining gaps.
 
 ### Users
 
@@ -206,7 +208,92 @@ permissions do not explicitly grant that access.
 | `GET /api/v1/standings/teams`        | Team standings             | Read            |
 
 Administrators and race organizers may correct results after completion with audit
-and standings recalculation.
+and standings recalculation. Because standings query `RaceResult` directly, no
+separate materialized update is required.
+
+All standings endpoints require a valid application role and an `ACTIVE` local
+profile. Their common query DTO accepts `page`, `limit`, `search`, `sortBy`, and
+`sortOrder`. Allowed `sortBy` values are `position`, `name`, `totalPoints`, `wins`,
+`secondPlaces`, `racesCompleted`, and `bestFinalTimeMs`; the default is official
+`position` ascending. `GET /standings/competitors` additionally accepts competitor
+`status` and `type`, while `GET /standings/teams` additionally accepts team
+`status`. The overall endpoint applies its common query independently to both
+collections. Filters are applied after the official rank is calculated, so returned
+positions remain global league positions.
+
+`GET /api/v1/standings/competitors` returns the standard collection envelope with
+items shaped as:
+
+```json
+{
+  "position": 1,
+  "competitorId": "b052ed30-d264-4e85-b356-0ad6e094afbb",
+  "name": "Ayla Stonefoot",
+  "nickname": "GraniteDash",
+  "type": "DWARF",
+  "status": "ACTIVE",
+  "totalPoints": 17,
+  "wins": 1,
+  "secondPlaces": 1,
+  "racesCompleted": 2,
+  "bestFinalTimeMs": 74250
+}
+```
+
+`GET /api/v1/standings/teams` uses the same envelope and statistics, replacing the
+competitor projection with `teamId`, `name`, and team `status`:
+
+```json
+{
+  "position": 1,
+  "teamId": "2c914e0e-2e4d-4c20-a36e-ec659b2a45bd",
+  "name": "EIA Trailblazers",
+  "status": "ACTIVE",
+  "totalPoints": 10,
+  "wins": 1,
+  "secondPlaces": 0,
+  "racesCompleted": 1,
+  "bestFinalTimeMs": 80100
+}
+```
+
+`GET /api/v1/standings` reuses both specialized queries and returns:
+
+```json
+{
+  "pointsTable": [
+    { "position": 1, "points": 10 },
+    { "position": 2, "points": 7 },
+    { "position": 3, "points": 5 },
+    { "position": 4, "points": 3 },
+    { "position": 5, "points": 1 }
+  ],
+  "zeroPointResultStatuses": [
+    "DID_NOT_START",
+    "DID_NOT_FINISH",
+    "DISQUALIFIED"
+  ],
+  "competitors": {
+    "items": [],
+    "page": 1,
+    "limit": 20,
+    "totalItems": 0,
+    "totalPages": 0
+  },
+  "teams": {
+    "items": [],
+    "page": 1,
+    "limit": 20,
+    "totalItems": 0,
+    "totalPages": 0
+  }
+}
+```
+
+Only participants with at least one result in a `COMPLETED` race appear. A
+non-finished official result creates a zero-point entry. `racesCompleted` counts
+official `FINISHED` results, and `bestFinalTimeMs` is nullable. Completely tied
+entries share `position`; name and identifier only stabilize response order.
 
 ### Audit
 

@@ -12,7 +12,8 @@ PostgreSQL stores application-domain data. Keycloak stores identity-system data.
 TypeORM is the definitive ORM and TypeORM migrations are the definitive application
 schema-evolution mechanism. `UserProfile`, `Competitor`, `Team`, `TeamMember`,
 `Race`, `RaceRegistration`, `RaceResult`, and `AuditLog` are implemented as TypeORM
-entities with reviewed migrations. Standings remain derived/conceptual.
+entities with reviewed migrations. Standings are implemented as derived queries and
+have no persistence entity or duplicated counters.
 
 ### Keycloak-Owned Data
 
@@ -342,3 +343,8 @@ Competitor, team/membership, race, registration, and result migrations exist. Ra
 organizer, registration actor, and result recorder columns are temporarily nullable
 until authenticated local user profiles are introduced; the API does not accept
 client-supplied actor identities. Seeds do not currently exist.
+
+The standings increment requires no migration: every score and tie-breaker is
+derivable from existing race status, result status/position/time, registration
+participant references, and participant identity fields. Corrections update the
+authoritative `race_results` row and therefore affect the next query automatically.

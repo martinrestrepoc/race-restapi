@@ -34,6 +34,15 @@ Individual standings are ordered by:
 4. Completed races
 5. Best final time
 
+The verified academic points table awards 10, 7, 5, 3, and 1 points for final
+positions one through five. Later positions and every non-finished result award
+zero. Points use `finalPosition`, never a position inferred from time. Only results
+from `COMPLETED` races are official for standings.
+
+The best valid final time sorts before a missing time. Entries that remain equal on
+all five sporting criteria share a position (`DENSE_RANK`). Name and identifier are
+used only as stable output ordering. Team standings adopt the same criteria.
+
 Team standings include only results where the team itself was the registered race
 participant. Results of individual members are not automatically aggregated into
 the team.
@@ -49,7 +58,6 @@ the initial version.
 - Result corrections need a transaction and deterministic recalculation.
 - Existing persistence fields for victories, defeats, and completed-race counters
   must be removed from the target model or marked as future projections.
-- The official points table remains pending until the source PDF is available and
-  verified.
-- The formula relating raw, penalty, and final time and the handling of equal final
-  times remain pending.
+- The points table and complete standings tie policy are no longer pending.
+- Final time is the backend-calculated raw time plus penalty time. Equal best final
+  times remain tied when every preceding criterion is also equal.

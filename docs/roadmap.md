@@ -36,11 +36,13 @@ relevant unit, integration, and E2E tests are present.
 7. **Results — functional core implemented.** Integer-millisecond final-time
    calculation, official correction, transactional audit writes, constraints, and
    unit tests, role enforcement, and authenticated result/audit actors exist.
-   PostgreSQL-backed workflow/correction E2E coverage exists. Standings
-   recalculation remains pending.
-8. **Standings and audit queries — partially implemented.** The paginated,
-   filterable, administrator-only audit list/detail API is implemented. Standings
-   endpoints remain pending.
+   PostgreSQL-backed workflow/correction E2E coverage exists. Corrections are
+   reflected by derived standings on the next query.
+8. **Standings and audit queries — implemented.** The paginated, filterable,
+   administrator-only audit list/detail API is implemented. Overall, competitor,
+   and direct-team standings derive the confirmed scoring and tie policy from
+   official results, with DTOs, role/profile guards, deterministic pagination, and
+   unit/PostgreSQL E2E coverage.
 9. **Quality hardening — implemented.** Coverage now measures production TypeScript
    rather than migrations and framework wiring, global anti-regression thresholds
    are enforced, and registration transitions, audit queries, and profile
@@ -49,5 +51,4 @@ relevant unit, integration, and E2E tests are present.
 
 ## Next Increment
 
-Implement standings once the official points table and tie policy are resolved;
-until then, the next safe increment is reproducible domain seeds or frontend work.
+The next safe increment is reproducible domain seeds or frontend work.

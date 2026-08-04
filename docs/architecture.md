@@ -18,7 +18,9 @@ request validation, the `/api/v1` prefix, and uniform error handling. A multi-st
 backend image and a Compose topology for NestJS, PostgreSQL, and Keycloak are
 present. Local user profiles, competitor, team, historical-membership, race,
 registration, result, and audit persistence modules and migrations are implemented.
-Standings, domain seeds, and the frontend application are not yet present. Audit
+The standings module derives individual and directly registered team rankings from
+official results with PostgreSQL aggregate/window queries; it stores no standings
+state. Domain seeds and the frontend application are not yet present. Audit
 writes cover profile provisioning and implemented domain mutations, carry an
 authenticated profile actor, and are queryable only by administrators. The
 authentication module validates Keycloak tokens and provides
@@ -241,6 +243,13 @@ sequenceDiagram
 
 Domain authorization remains in the service when access depends on the resource,
 ownership, state, or other application data rather than only on a global role.
+
+Standings follow the same flow but remain read-only. The service builds allowlisted,
+parameterized PostgreSQL aggregate queries over `RaceResult`, `RaceRegistration`,
+`Race`, and the relevant participant table. A window rank is calculated before
+filters and pagination, so filtered responses retain official league positions.
+The overall endpoint invokes the same competitor and team service operations used
+by the specialized endpoints rather than reimplementing scoring.
 
 ## Database Evolution
 

@@ -21,20 +21,24 @@ provisioning, idempotency, disabled-profile behavior, actor propagation, audit
 filter/detail reads, and administrator-only audit authorization. Seed tests remain
 pending. Profile-administration E2E coverage verifies filtering, detail reads,
 transactional status audit, viewer denial, and administrator self-disable
-prevention.
+prevention. Standings unit and PostgreSQL-backed E2E coverage verifies the official
+points table, zero-point outcomes, completed-race boundary, every tie-breaker,
+shared positions, direct team participation, correction visibility, pagination,
+filtering, deterministic sorting, all read roles, missing authentication, and
+disabled-profile denial.
 
-The current unit suite contains 85 tests. Its production-code coverage is 81.40%
-of statements, 70.52% of branches, 54.66% of functions, and 81.57% of lines.
+The current unit suite contains 99 tests. Its production-code coverage is 82.36%
+of statements, 71.24% of branches, 56.73% of functions, and 82.30% of lines.
 Coverage deliberately excludes tests, NestJS module wiring, migrations, the
 TypeORM CLI data source, and application bootstrap files. Global minimums enforced
-by Jest are 75% statements, 65% branches, 45% functions, and 75% lines. The 21 E2E
+by Jest are 75% statements, 65% branches, 45% functions, and 75% lines. The 27 E2E
 tests and 9 dedicated security tests run as separate suites and are not combined
 into these instrumentation percentages.
 
 The 15 mandatory academic scenarios are represented across unit, PostgreSQL-backed
-E2E, and dedicated JWT/JWKS suites. Rules intentionally left as `Decision pending`,
-including the official standings points table and equal-time policy, are not encoded
-as invented expectations.
+E2E, and dedicated JWT/JWKS suites. Rules intentionally left as `Decision pending`
+are not encoded as invented expectations. The now-confirmed standings scoring and
+tie policy are encoded explicitly.
 
 The target suite must contain at least 15 meaningful automated tests. Getter/setter
 tests do not count.
@@ -131,8 +135,8 @@ Use a controllable clock for deadline/past-date tests so tests do not become fla
 - Reject a participant competing individually and through a team in the same race.
 - Reject duplicate starting and normal finishing positions.
 - Reject non-positive completion time and disqualified winners.
-- Verify the PDF-approved points table once available and consistent statistics
-  after result updates.
+- Verify the approved 10/7/5/3/1 points table, zero-point outcomes, all standings
+  tie-breakers, shared positions, and consistent statistics after result updates.
 - Verify only administrators can read the complete audit log.
 - Verify sensitive fields never appear in response DTOs or audit snapshots.
 

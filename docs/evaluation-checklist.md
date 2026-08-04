@@ -27,6 +27,8 @@ are intentionally maintained only here.
 - [ ] Race lifecycle, eligibility, deadlines, capacity, duplicate prevention, and
       official results are enforced.
 - [ ] Statistics and standings remain consistent after result changes.
+- [x] The official standings table, tie-breakers, shared positions, and direct-team
+      aggregation are enforced from authoritative official results.
 - [ ] The required initial demonstration data can be reproduced.
 - [ ] Undefined rules are resolved and documented before implementation.
 
@@ -188,5 +190,8 @@ At documentation creation time:
       JWT/JWKS security and controller-policy tests.
 - [x] Race, registration, result, correction, audit, and multi-role workflows have
       PostgreSQL-backed E2E coverage.
+- [x] Overall, competitor, and team standings endpoints, response DTOs, query
+      controls, role/profile enforcement, and PostgreSQL-backed correction/tie
+      coverage exist.
 
 This baseline is informational and must be updated as implementation progresses.

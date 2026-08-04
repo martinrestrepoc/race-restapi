@@ -20,6 +20,12 @@ the role matrix and reject locally disabled profiles. Race, registration, result
 and domain audit writes use the authenticated local-profile identifier. Complete
 audit-log list/detail reads are restricted to `ADMINISTRATOR`.
 
+All three standings reads use the standard JWT, active-profile, and role guards.
+`ADMINISTRATOR`, `RACE_ORGANIZER`, and `VIEWER` are allowed; missing authentication
+returns `401`, and a locally disabled profile returns `403`. Standings queries do
+not accept actor or role fields and expose response DTOs rather than persistence
+entities.
+
 Administrative profile list/detail/status operations are also restricted to
 `ADMINISTRATOR` and require an active local profile. Status changes use a row lock,
 are audited in the same transaction, and reject self-disable to prevent an

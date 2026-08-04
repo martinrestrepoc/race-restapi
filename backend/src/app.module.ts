@@ -12,6 +12,7 @@ import { ResultsModule } from './results/results.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
+import { StandingsModule } from './standings/standings.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UsersModule } from './users/users.module';
     RacesModule,
     RegistrationsModule,
     ResultsModule,
+    StandingsModule,
     AuditModule,
   ],
   controllers: [AppController],

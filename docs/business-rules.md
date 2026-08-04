@@ -140,14 +140,23 @@ states remain `Decision pending`.
 
 ## Standings
 
-- The official points table remains `Decision pending` until the academic source
-  PDF is available and verified.
+- The official points table is 10 points for first, 7 for second, 5 for third, 3
+  for fourth, 1 for fifth, and 0 for every later position.
 - `DID_NOT_START`, `DID_NOT_FINISH`, and `DISQUALIFIED` award zero points.
-- Standings use official results only.
+- Points use the stored `finalPosition`; standings do not infer a position from
+  final time.
+- Standings use only `RaceResult` rows belonging to `COMPLETED` races.
+- Only `FINISHED` results can receive points or contribute a best final time.
+- Completed races in the tie-breaker mean official `FINISHED` results.
 - Individual order is total points, wins, second places, completed races, then best
   final time.
+- A valid best final time precedes a missing time.
 - Team standings use only races where the team was directly registered.
-- Equal final times remain `Decision pending` for standings tie-breaking.
+- Team standings use the same sporting order as individual standings.
+- Entries equal on every sporting criterion share the same position. Name and ID
+  provide deterministic response order only and do not break the sporting tie.
+- Statistics are queried from official results and are never duplicated as stored
+  counters. A result correction is visible on the next standings query.
 
 ## Audit Logs
 

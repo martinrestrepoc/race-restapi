@@ -116,8 +116,10 @@ Team statuses are `ACTIVE` and `INACTIVE`.
   winner rules.
 - Derive competitor/team statistics from official results.
 - Provide overall, competitor, and team standings.
+- Award 10, 7, 5, 3, and 1 points for final positions one through five,
+  respectively; later positions award zero points.
 - Award zero points for `DID_NOT_START`, `DID_NOT_FINISH`, and `DISQUALIFIED`.
-- The remaining points table is `Decision pending` until verified against the PDF.
+- Preserve shared positions when all sporting tie-breakers are equal.
 
 ## Graphical User Interface
 
