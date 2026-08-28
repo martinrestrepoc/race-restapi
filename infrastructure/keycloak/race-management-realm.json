@@ -6,6 +6,10 @@
   "registrationAllowed": false,
   "resetPasswordAllowed": true,
   "rememberMe": true,
+  "loginTheme": "race-management",
+  "internationalizationEnabled": true,
+  "supportedLocales": ["es", "en"],
+  "defaultLocale": "es",
   "loginWithEmailAllowed": true,
   "duplicateEmailsAllowed": false,
   "clients": [
@@ -34,10 +38,10 @@
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": false,
       "fullScopeAllowed": true,
-      "rootUrl": "http://localhost:5173",
-      "baseUrl": "http://localhost:5173",
-      "redirectUris": ["http://localhost:5173/*"],
-      "webOrigins": ["http://localhost:5173"],
+      "rootUrl": "${FRONTEND_PUBLIC_URL}",
+      "baseUrl": "${FRONTEND_PUBLIC_URL}",
+      "redirectUris": ["${FRONTEND_PUBLIC_URL}/*"],
+      "webOrigins": ["${FRONTEND_PUBLIC_URL}"],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">EIA Racing League</title>
+  <rect width="64" height="64" rx="12" fill="#a7ef2b"/>
+  <path fill="#182211" d="M20 14h24v7h7v8c0 7-5 12-12 13-1 4-3 7-6 8h9v5H22v-5h9c-3-1-5-4-6-8-7-1-12-6-12-13v-8h7v-7Zm5 5v14c0 7 3 11 7 11s7-4 7-11V19H25Zm-5 7h-2v3c0 4 2 7 5 8-2-4-3-7-3-11Zm24 0c0 4-1 7-3 11 3-1 5-4 5-8v-3h-2Z"/>
+</svg>

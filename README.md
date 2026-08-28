@@ -3,7 +3,7 @@
 A NestJS REST API for managing competitors, teams, races, registrations, official
 results, standings, and audit records for a fictional racing league.
 
-The product will combine this backend with a separate graphical frontend, PostgreSQL,
+The product combines this backend with a separate graphical frontend, PostgreSQL,
 and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
 API over HTTP, and never accesses PostgreSQL directly. This repository is organized
 as a monorepo: the initial NestJS starter lives under `backend/`, while `frontend/`
@@ -14,7 +14,7 @@ identity endpoints; domain-wide role policies, lazy local profiles, authenticate
 actor attribution, mutation audit events, and administrator audit queries are
 implemented. Administrators can also list profiles and manage their local status.
 Standings and reproducible domain demonstration seeds are implemented. The
-frontend application remains pending.
+frontend application and its complete container integration are implemented.
 
 ## Objective
 
@@ -66,8 +66,8 @@ Current repository state:
   image, persistent PostgreSQL storage, a reproducible realm, runtime token
   validation, reusable authentication/role/profile guards, domain-controller role
   policies, lazy local profiles, and `GET /api/v1/users/me` are present.
-- A Compose stack for NestJS, PostgreSQL, and Keycloak is configured. Reproducible
-  domain demonstration seeds are present; the frontend application is not.
+- A Compose stack for the React frontend, NestJS, PostgreSQL, and Keycloak is
+  configured. Reproducible domain demonstration seeds are present.
 - No Node version file or package `engines` constraint is present. The inspected
   development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
 
@@ -91,7 +91,7 @@ Detailed boundaries and the proposed module layout are in
 - Alternatively, a locally accessible PostgreSQL instance when running NestJS
   directly with npm.
 - Keycloak 26.7.0 is built and started by Docker Compose.
-- React/TypeScript/Vite frontend under target `frontend/`.
+- React/TypeScript/Vite frontend under `frontend/`.
 
 ## Installation
 
@@ -146,12 +146,13 @@ npm run start:prod
 
 ## Docker
 
-The Compose stack starts NestJS, PostgreSQL, and Keycloak. PostgreSQL hosts separate
-application and Keycloak databases with distinct credentials. An idempotent setup
-job provisions the Keycloak database even when the PostgreSQL volume already exists.
-Keycloak uses an optimized pinned image, management-port healthchecks, and a
-reproducible realm import. The backend runs pending TypeORM migrations before
-starting the API.
+The Compose stack starts the React frontend, NestJS, PostgreSQL, and Keycloak.
+PostgreSQL hosts separate application and Keycloak databases with distinct
+credentials. An idempotent setup job provisions the Keycloak database even when
+the PostgreSQL volume already exists. Keycloak uses an optimized pinned image,
+management-port healthchecks, and a reproducible realm import. The backend runs
+pending TypeORM migrations before starting the API. The frontend uses an
+unprivileged, read-only Nginx runtime with SPA fallback and a same-origin API proxy.
 
 Create the Compose environment file at the repository root, replace every password
 placeholder with a different local value, and start the services:
@@ -163,24 +164,28 @@ docker compose up -d --build
 docker compose ps
 ```
 
-The API is available at `http://localhost:3000/api/v1` and Keycloak at
-`http://localhost:8080` by default. PostgreSQL is
+The graphical application is available at `http://localhost:5173`, the API at
+`http://localhost:3000/api/v1`, and Keycloak at `http://localhost:8080` by default.
+PostgreSQL is
 published at `localhost:5433` by default so it does not conflict with a PostgreSQL
 instance already using port `5432`. Both ports can be changed in the root `.env`.
-Inside the Docker network, the backend connects to `postgres:5432`.
+Inside the Docker network, the backend connects to `postgres:5432` and Nginx
+proxies `/api/` to `backend:3000` without exposing an internal hostname to the
+browser. If the frontend port changes, keep `FRONTEND_HOST_PORT` and
+`FRONTEND_PUBLIC_URL` aligned and update the persisted Keycloak client origin.
 
 Useful commands:
 
 ```bash
 docker compose logs -f backend
 docker compose logs -f keycloak
+docker compose logs -f frontend
 docker compose down
 ```
 
 `docker compose down` preserves database data. Running `docker compose down -v`
 also deletes the named PostgreSQL volume and all data stored in it.
 
-The target topology will later add the separate frontend service.
 Changing PostgreSQL initialization credentials after the volume has been created
 does not update the bootstrap database user. The idempotent Keycloak database setup
 does update its dedicated role password. Recreate the volume only when losing all

@@ -18,6 +18,13 @@ lerna-debug.log*
 # Tests
 **/coverage
 **/.nyc_output
+**/.playwright-cli
+**/output/playwright
+**/playwright-report
+**/test-results
+
+# Tool caches
+**/.vite
 
 # IDEs and editors
 /.idea

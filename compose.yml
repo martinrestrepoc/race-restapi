@@ -25,11 +25,7 @@ services:
     healthcheck:
       # $$ escapa el signo $ de Compose. Así POSTGRES_USER y POSTGRES_DB se
       # resuelven dentro del contenedor, donde existen como variables de entorno.
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB",
-        ]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -84,6 +80,7 @@ services:
       KEYCLOAK_DEMO_ADMIN_PASSWORD: ${KEYCLOAK_DEMO_ADMIN_PASSWORD:?Set KEYCLOAK_DEMO_ADMIN_PASSWORD in .env}
       KEYCLOAK_DEMO_ORGANIZER_PASSWORD: ${KEYCLOAK_DEMO_ORGANIZER_PASSWORD:?Set KEYCLOAK_DEMO_ORGANIZER_PASSWORD in .env}
       KEYCLOAK_DEMO_VIEWER_PASSWORD: ${KEYCLOAK_DEMO_VIEWER_PASSWORD:?Set KEYCLOAK_DEMO_VIEWER_PASSWORD in .env}
+      FRONTEND_PUBLIC_URL: ${FRONTEND_PUBLIC_URL:-http://localhost:5173}
     command: ["start", "--optimized", "--import-realm"]
     volumes:
       - ./infrastructure/keycloak/race-management-realm.json:/opt/keycloak/data/import/race-management-realm.json:ro
@@ -147,6 +144,58 @@ services:
         condition: service_healthy
       keycloak:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - race_network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api/v1
+        VITE_KEYCLOAK_URL: ${KEYCLOAK_BASE_URL:-http://localhost:8080}
+        VITE_KEYCLOAK_REALM: ${KEYCLOAK_REALM:-race-management}
+        VITE_KEYCLOAK_CLIENT_ID: ${FRONTEND_KEYCLOAK_CLIENT_ID:-race-frontend}
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${FRONTEND_HOST_PORT:-5173}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8080/healthz",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    read_only: true
+    tmpfs:
+      - /tmp
     security_opt:
       - no-new-privileges:true
     networks:

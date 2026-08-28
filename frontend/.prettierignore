@@ -1,0 +1,9 @@
+coverage
+.playwright-cli
+design-reference
+dist
+node_modules
+output/playwright
+package-lock.json
+playwright-report
+test-results

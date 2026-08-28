@@ -224,16 +224,36 @@ Assert more than status codes:
 
 ## Frontend Tests
 
-Frontend tests are optional but recommended. At minimum, demonstrate that the
-separate UI correctly handles:
+The frontend under `frontend/` uses Vitest, Testing Library, MSW, and Playwright.
+Its deterministic unit/component suite verifies:
 
 - Successful responses
 - Field validation failures
 - Authentication and authorization failures
 - Loading, empty, and general error states
 - Role-aware action visibility without treating it as backend security
+- Query serialization, pagination, cache invalidation, date/time conversion, and
+  conditional result fields
+- Shared loading, empty, error, notification, and confirmation semantics
 
-The frontend test framework and repository are `Decision pending`.
+Run it from `frontend/` with:
+
+```bash
+npm test
+npm run test:e2e
+```
+
+The Playwright suite starts a production Vite preview on `localhost:5173` and
+proxies `/api/v1` to the real local NestJS service. PostgreSQL, Keycloak, and the
+backend must already be active. It runs sequentially, authenticates all three demo
+roles through Keycloak, and exercises field validation, authorization, an
+authoritative conflict, the branded login/recovery experience, and the complete
+racing workflow through standings and audit.
+
+Credentials are loaded from external `E2E_*_PASSWORD` variables or the ignored
+repository-root `KEYCLOAK_DEMO_*_PASSWORD` variables. They must never be committed
+or exposed as `VITE_*` values. Browser tests create uniquely named development
+records and must never target production.
 
 ## Existing Commands
 

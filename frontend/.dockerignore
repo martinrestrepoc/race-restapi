@@ -1,0 +1,12 @@
+node_modules
+dist
+coverage
+output
+playwright-report
+test-results
+design-reference
+.env
+.env.*
+*.md
+.git
+.DS_Store
