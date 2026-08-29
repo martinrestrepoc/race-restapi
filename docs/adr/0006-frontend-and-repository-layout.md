@@ -20,8 +20,9 @@ connects to PostgreSQL.
 
 ## Consequences
 
-- The current NestJS starter at the repository root must be moved into `backend/`
-  in a later implementation phase.
-- Root-level scripts or workspace configuration will eventually coordinate both
-  applications without coupling their deployment artifacts.
-- The move is not part of this documentation-only change.
+- `backend/` and `frontend/` keep independent manifests, lockfiles, tests, and
+  production images.
+- The root Compose topology coordinates both applications with PostgreSQL and
+  Keycloak without coupling their deployment artifacts.
+- The frontend mirrors the public REST contract through browser-safe TypeScript
+  types and does not import NestJS DTO classes or backend source.

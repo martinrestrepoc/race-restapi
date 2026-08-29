@@ -3,8 +3,8 @@
 ## Accepted Decisions
 
 The accepted [Architecture Decision Records](adr/README.md) and
-[implementation roadmap](roadmap.md) supersede earlier pending statements on the
-same topic. Their acceptance does not imply implementation.
+[implementation roadmap](roadmap.md) record the selected contract. Endpoints in
+the status table below are implemented.
 
 ## Status and Scope
 
@@ -91,12 +91,11 @@ Expected statuses:
 | `403 Forbidden`             | Valid identity lacks required role/domain permission                      |
 | `404 Not Found`             | Requested resource does not exist                                         |
 | `409 Conflict`              | Uniqueness, transition, capacity, eligibility, or other business conflict |
-| `422 Unprocessable Entity`  | `Decision pending` - use only if adopted consistently                     |
 | `500 Internal Server Error` | Unexpected failure with no internal detail exposed                        |
 
-If `422` is not explicitly adopted, domain validation/conflicts use `400` or `409`
-according to whether the failure is input shape/field validity or current resource
-state.
+`422` is not used by the implemented v1 contract. Domain validation and conflicts
+use `400` or `409` according to whether the failure is input shape/field validity
+or current resource state.
 
 ## Resource Endpoints
 
@@ -192,8 +191,9 @@ reason. Allowed transitions are defined in ADR 0001.
 | `PATCH /api/v1/registrations/:id/reject`   | Reject with clear reason     | Race management |
 | `DELETE /api/v1/registrations/:id`         | Cancel/remove as permitted   | Race management |
 
-Whether viewers may read public registration lists is `Decision pending`; minimum
-permissions do not explicitly grant that access.
+The implemented initial policy deliberately restricts registration list/detail
+reads to administrators and race organizers. Viewers receive `403`; public race
+and result reads do not expose registration administration.
 
 ### Results and Standings
 
@@ -329,7 +329,7 @@ Use a shared collection convention:
 - The default page is `1`, the default page size is `20`, and the maximum `limit`
   is `100`.
 
-A proposed response envelope:
+The implemented response envelope is:
 
 ```json
 {
@@ -348,13 +348,16 @@ Empty results use `totalPages: 0`.
 - API date-times use ISO 8601 strings with an explicit UTC offset, preferably UTC
   `Z`, for example `2026-08-15T14:30:00.000Z`.
 - Calendar dates use `YYYY-MM-DD`.
-- The server compares race/deadline timestamps using one documented clock/time-zone
-  strategy; storage should use UTC-compatible timestamps.
-- Time zone for user-entered race schedules and display conversion is
-  `Decision pending`.
+- The backend parses explicit-offset ISO 8601 input, compares absolute instants
+  through an injectable clock, stores PostgreSQL `timestamptz`, and serializes UTC
+  ISO 8601 values with `Z`.
+- Browser race controls use `datetime-local` in the browser's current IANA time
+  zone, display that zone next to the controls, convert to UTC with
+  `Date.toISOString()` before requests, and convert API instants back to local time
+  when editing a draft. Backend validation remains authoritative.
 - Distance is expressed in meters.
-- Weight is kilograms, height is centimeters, and raw/penalty/final time is integer milliseconds and
-  must be encoded in field names or documented unambiguously before implementation.
+- Weight is kilograms, height is centimeters, and raw/penalty/final time is integer
+  milliseconds, encoded with the `Ms` suffix in API field names.
 - `finalTimeMs` is calculated by the backend as `rawTimeMs + penaltyTimeMs` and is
   never accepted as an input field. Non-finished results use null raw/final time
   and final position values.

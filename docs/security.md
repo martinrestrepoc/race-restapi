@@ -3,8 +3,8 @@
 ## Accepted Decisions
 
 The accepted [Architecture Decision Records](adr/README.md) and
-[implementation roadmap](roadmap.md) supersede earlier pending statements on the
-same topic. Their acceptance does not imply implementation.
+[implementation roadmap](roadmap.md) record the selected security design. The
+controls described below are implemented unless a limitation is explicitly marked.
 
 ## Security Model
 
@@ -32,6 +32,13 @@ are audited in the same transaction, and reject self-disable to prevent an
 administrator from locking themselves out. These operations manage only local
 application access; they do not modify the Keycloak account, credentials, sessions,
 or roles.
+
+The React frontend is a public `keycloak-js` client using Authorization Code Flow
+with PKCE S256. Tokens remain in adapter memory, are refreshed before protected
+requests, and are never persisted in local or session storage. Production Compose
+serves the UI and `/api/v1` from the same origin; the browser receives no client
+secret. The custom login theme changes presentation only: Keycloak continues to own
+the credential forms and authentication flow.
 
 ## Responsibility Boundary
 
@@ -240,7 +247,7 @@ DATABASE_PASSWORD
 The backend configuration names above are selected. `KEYCLOAK_CLIENT_ID` identifies
 the API client whose client roles are trusted. `KEYCLOAK_AUDIENCE` may be empty only
 where audience validation is deliberately disabled; production should configure it.
-Administrative credentials belong to the future Keycloak container bootstrap and
+Administrative credentials belong only to the Keycloak container bootstrap and
 must not be passed to the NestJS application.
 
 - Do not commit `.env`, realm exports containing real secrets, credentials, or
@@ -290,13 +297,23 @@ changes need an explicit administrative migration or a deliberate local reset.
 
 ## Browser and Frontend Considerations
 
-- Use Authorization Code Flow with PKCE for the public frontend.
-- Allow only known redirect/logout URLs and origins.
-- Keep access tokens out of URLs and logs.
-- Token storage strategy and XSS/CSRF controls depend on the frontend architecture:
-  `Decision pending`.
+- The public frontend uses Authorization Code Flow with PKCE S256.
+- Keycloak allows only the configured redirect/logout URLs and web origins.
+- The adapter keeps tokens in memory, refreshes them before protected requests,
+  clears local authentication state on failure, and sends access tokens only in
+  authorization headers.
+- React escaping is preserved, audit JSON is rendered as text, the application has
+  no `dangerouslySetInnerHTML`, remote script CDN, or application-owned credential
+  form. XSS remains a material threat because a running script could read an
+  in-memory token.
+- Bearer authentication is not based on ambient application cookies, which reduces
+  conventional CSRF exposure. PKCE protects authorization-code exchange.
+- The production frontend emits `nosniff`, same-origin framing, strict referrer, and
+  restrictive permissions headers. A Content Security Policy should be added only
+  after testing the complete Keycloak redirect flow.
+- The production container uses a same-origin Nginx proxy for `/api/`; the Vite
+  development server provides an equivalent local proxy without permissive CORS.
 - Apply HTTPS in non-local environments.
-- Configure CORS to explicit frontend origins; production wildcards are forbidden.
 - Treat frontend validation and visual authorization as UX only.
 
 ## Security Test Expectations

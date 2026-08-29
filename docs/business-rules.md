@@ -116,9 +116,10 @@ Allowed transitions are:
 
 New registrations start as `PENDING`. Administrators and race organizers may
 transition `PENDING` to `APPROVED` or `REJECTED`; rejection requires a reason.
-A nonterminal registration may become `CANCELLED` only before registration closes.
-`REJECTED` and `CANCELLED` are terminal. The cancellation actor and exact source
-states remain `Decision pending`.
+A `PENDING` or `APPROVED` registration may become `CANCELLED` only while the
+registration window remains open. `REJECTED` and `CANCELLED` are terminal.
+Cancellation is restricted to administrators and race organizers, records their
+validated local profile as performer, and creates an audit event.
 
 ## Results
 

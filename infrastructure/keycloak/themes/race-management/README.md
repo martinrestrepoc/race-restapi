@@ -8,6 +8,30 @@ flows. The repository only overrides presentation and messages.
 All assets are local and versioned. Do not add a CDN, frontend-managed password
 form, token, client secret, or environment-specific credential.
 
+## Structure and local preview
+
+```text
+login/
+├── theme.properties
+├── messages/
+│   ├── messages_en.properties
+│   └── messages_es.properties
+└── resources/
+    ├── css/login.css
+    └── img/racing-mark.svg
+```
+
+From the repository root, build and start the pinned theme image with
+`docker compose up -d --build keycloak`, then open the graphical application at
+`http://localhost:5173` and choose **Iniciar sesión**. The redirect must show the
+league mark and dark/lime theme on Keycloak-owned login, error, and recovery pages.
+For automated coverage, run `npm run test:e2e -- --grep "branded Keycloak"` from
+`frontend/` while the complete Compose stack is healthy.
+
+The theme relies on its parent's semantic form structure. Its stylesheet preserves
+visible keyboard focus, responsive widths, reduced motion, high-contrast messages,
+and zoom-safe sizing; test these rather than copying parent templates.
+
 Before changing Keycloak versions:
 
 1. Review the upstream theme migration notes and `keycloak.v2` templates.

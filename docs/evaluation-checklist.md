@@ -20,59 +20,61 @@ are intentionally maintained only here.
 
 ## Functional Requirements and Business Rules
 
-- [ ] Competitor, team, race, registration, result, standings, user-profile, and
+- [x] Competitor, team, race, registration, result, standings, user-profile, and
       audit capabilities satisfy [Project requirements](project-requirements.md).
-- [ ] All rules in [Business rules](business-rules.md) are enforced in backend code.
-- [ ] Filtering, pagination, and sorting work where mandatory.
-- [ ] Race lifecycle, eligibility, deadlines, capacity, duplicate prevention, and
+- [x] All rules in [Business rules](business-rules.md) are enforced in backend code.
+- [x] Filtering, pagination, and sorting work where mandatory.
+- [x] Race lifecycle, eligibility, deadlines, capacity, duplicate prevention, and
       official results are enforced.
-- [ ] Statistics and standings remain consistent after result changes.
+- [x] Statistics and standings remain consistent after result changes.
 - [x] The official standings table, tie-breakers, shared positions, and direct-team
       aggregation are enforced from authoritative official results.
 - [x] The required initial domain demonstration data can be reproduced independently
       from migrations and contains no identity credentials.
-- [ ] Undefined rules are resolved and documented before implementation.
+- [x] Undefined rules are not invented; remaining retention/anonymization choices
+      are documented limitations outside the implemented workflow.
 
 ## Graphical Interface and User Experience
 
-- [ ] A separate graphical frontend consumes the NestJS API.
-- [ ] The frontend never accesses PostgreSQL directly.
-- [ ] Login, dashboard, competitor, team, race, registration, result, standings,
+- [x] A separate graphical frontend consumes the NestJS API.
+- [x] The frontend never accesses PostgreSQL directly.
+- [x] Login, dashboard, competitor, team, race, registration, result, standings,
       profile/logout, access-denied, and not-found screens exist.
-- [ ] The main workflow can be completed through the UI without Postman.
-- [ ] Loading, success, empty, validation-error, general-error, and authorization
+- [x] The main workflow can be completed through the UI without Postman.
+- [x] Loading, success, empty, validation-error, general-error, and authorization
       states are visible and understandable.
-- [ ] Forms provide field labels and field-level validation feedback.
-- [ ] Destructive actions require confirmation.
-- [ ] Role-inappropriate controls are hidden/disabled without replacing backend
+- [x] Forms provide field labels and field-level validation feedback.
+- [x] Destructive actions require confirmation.
+- [x] Role-inappropriate controls are hidden/disabled without replacing backend
       authorization.
-- [ ] Navigation, typography, contrast, and keyboard interaction are usable.
+- [x] Navigation, typography, contrast, and keyboard interaction are usable.
 
 ## API Design and Code Organization
 
-- [ ] The API uses the documented `/api/v1` contract.
-- [ ] Controllers are thin and contain no business logic.
-- [ ] Services own business rules and transaction boundaries.
-- [ ] DTOs are separate from TypeORM entities.
-- [ ] Response models prevent accidental entity/internal-field exposure.
-- [ ] Methods, status codes, pagination, sorting, filtering, date formats, and JSON
+- [x] The API uses the documented `/api/v1` contract.
+- [x] Controllers are thin and contain no business logic.
+- [x] Services own business rules and transaction boundaries.
+- [x] DTOs are separate from TypeORM entities.
+- [x] Response models prevent accidental entity/internal-field exposure.
+- [x] Methods, status codes, pagination, sorting, filtering, date formats, and JSON
       naming are consistent.
-- [ ] Error responses follow the documented contract.
-- [ ] No raw stack trace or infrastructure detail is returned.
-- [ ] No empty architectural layers or trivial repository wrappers exist.
+- [x] Error responses follow the documented contract.
+- [x] No raw stack trace or infrastructure detail is returned.
+- [x] No empty architectural layers or trivial repository wrappers exist.
 
 ## Authentication and Authorization
 
 - [x] Keycloak starts correctly with persistent storage.
 - [x] A dedicated project realm can be reproduced from reviewed configuration.
-- [ ] The frontend uses Authorization Code Flow with PKCE.
-- [ ] Keycloak issues the access tokens accepted by the API.
+- [x] The frontend uses Authorization Code Flow with PKCE.
+- [x] Keycloak issues the access tokens accepted by the API.
 - [x] NestJS validates signature, issuer, expiration, and configured audience.
 - [x] The required `ADMINISTRATOR`, `RACE_ORGANIZER`, and `VIEWER` roles exist.
 - [x] Backend guards enforce required roles.
 - [x] Validated subjects resolve to lazy local profiles and disabled profiles are
       rejected from domain routes.
-- [ ] Domain services enforce resource-specific authorization.
+- [x] Backend guards and domain services enforce role, profile, state, and
+      resource-specific authorization.
 - [x] Missing/invalid authentication returns `401`.
 - [x] Insufficient permission returns `403`.
 - [x] No frontend-supplied role is trusted.
@@ -81,32 +83,32 @@ are intentionally maintained only here.
 
 ## Database Design and Persistence
 
-- [ ] PostgreSQL stores application-domain data.
-- [ ] Keycloak-owned credentials and sessions are not duplicated in the application
+- [x] PostgreSQL stores application-domain data.
+- [x] Keycloak-owned credentials and sessions are not duplicated in the application
       database.
-- [ ] Primary keys, foreign keys, unique constraints, nullability, indexes, and
+- [x] Primary keys, foreign keys, unique constraints, nullability, indexes, and
       referential integrity are defined.
-- [ ] TypeORM entities match the reviewed conceptual model.
-- [ ] TypeORM migrations are available and reviewed.
-- [ ] Production does not use `synchronize: true`.
+- [x] TypeORM entities match the reviewed conceptual model.
+- [x] TypeORM migrations are available and reviewed.
+- [x] Production does not use `synchronize: true`.
 - [x] Seeds are separate from migrations and contain no credentials.
-- [ ] The application database uses a named persistent volume.
-- [ ] Data remains after service/container restart.
-- [ ] Multi-step and concurrency-sensitive writes are atomic.
+- [x] The application database uses a named persistent volume.
+- [x] Data remains after service/container restart.
+- [x] Multi-step and concurrency-sensitive writes are atomic.
 
 ## Docker and Execution Environment
 
-- [ ] Dockerfiles exist for the backend and separate frontend.
-- [ ] Docker Compose includes frontend, NestJS API, PostgreSQL, Keycloak, and
+- [x] Dockerfiles exist for the backend and separate frontend.
+- [x] Docker Compose includes frontend, NestJS API, PostgreSQL, Keycloak, and
       persistent Keycloak storage.
-- [ ] The services use an isolated Docker network.
-- [ ] Ports and environment variables are documented.
-- [ ] Practical health checks and startup dependencies are configured.
-- [ ] Containers become healthy.
-- [ ] PostgreSQL application data persists after restarts.
-- [ ] Keycloak configuration and database state persist after restarts.
-- [ ] No real credential is embedded in an image or Compose file.
-- [ ] The full solution starts with the documented one-command flow.
+- [x] The services use an isolated Docker network.
+- [x] Ports and environment variables are documented.
+- [x] Practical health checks and startup dependencies are configured.
+- [x] Containers become healthy.
+- [x] PostgreSQL application data persists after restarts.
+- [x] Keycloak configuration and database state persist after restarts.
+- [x] No real credential is embedded in an image or Compose file.
+- [x] The full solution starts with the documented one-command flow.
 
 ## Automated Testing
 
@@ -120,22 +122,28 @@ are intentionally maintained only here.
 - [x] Tests distinguish `401` from `403`.
 - [x] Tests do not use production PostgreSQL or production Keycloak.
 - [x] Test state is isolated and independent of execution order.
+- [x] Frontend unit/component/MSW tests and real-browser Keycloak/workflow tests
+      pass independently.
 
 ## Documentation, GitHub, and Team
 
-- [ ] `README.md` documents verified installation, configuration, ports, Docker,
+- [x] `README.md` documents verified installation, configuration, ports, Docker,
       migrations, seeds, tests, roles, limitations, and demo data.
-- [ ] The entity-relationship diagram matches the implementation.
-- [ ] Security, API, testing, architecture, and business-rule documents are current.
-- [ ] A non-secret `.env.example` exists.
-- [ ] No secret or credential is committed.
+- [x] The entity-relationship diagram matches the implementation.
+- [x] Security, API, testing, architecture, and business-rule documents are current.
+- [x] Non-secret root, backend, and frontend `.env.example` files exist.
+- [x] No secret or credential is committed.
 - [x] A modular Postman collection covers every implemented API endpoint,
       authorization boundaries, validation, conflicts, and the complete race flow.
-- [ ] Git history contains meaningful contributions from every team member.
+- [x] Git history contains meaningful contributions from every team member.
 - [ ] Branches and pull requests show a reviewable workflow.
 - [ ] All team members understand the architecture and main application flow.
 
 ## Final Demonstration
+
+- [x] A repeatable 8-12 minute workflow, role split, handled errors, recovery, and
+      recording checklist are prepared in
+      [Demonstration guide](demonstration-guide.md).
 
 - [ ] The video lasts 8-12 minutes and all team members participate.
 - [ ] Login and role restrictions are shown.
@@ -169,11 +177,11 @@ The project risks being considered incomplete if any condition below is true:
 Before submission, every box in this critical section must remain unchecked because
 each box describes a failure condition.
 
-## Current Repository Baseline
+## Verified Repository Baseline
 
-At documentation creation time:
+Verified for phase 15 on 2026-08-28:
 
-- [x] A minimal NestJS starter builds and has starter tests.
+- [x] The NestJS application builds and its unit, E2E, and security suites pass.
 - [x] npm, ESLint, and Prettier configuration exist.
 - [x] Competitor, team, and historical-membership implementations exist.
 - [x] TypeORM/PostgreSQL configuration and migration tooling exist.
@@ -185,9 +193,9 @@ At documentation creation time:
 - [x] Audit events are append-only and complete audit reads are restricted to
       administrators.
 - [x] Keycloak integration/realm configuration exists.
-- [x] Docker/Compose configuration exists for backend, PostgreSQL, and Keycloak.
-- [ ] The separate frontend application exists (the `frontend/` directory is
-      currently only a placeholder).
+- [x] Docker/Compose configuration runs frontend, backend, PostgreSQL, database
+      provisioning, and Keycloak together.
+- [x] The separate frontend application and branded Keycloak login exist.
 - [x] Competitor/team unit and database-backed E2E coverage exists, with dedicated
       JWT/JWKS security and controller-policy tests.
 - [x] Race, registration, result, correction, audit, and multi-role workflows have
@@ -196,4 +204,6 @@ At documentation creation time:
       controls, role/profile enforcement, and PostgreSQL-backed correction/tie
       coverage exist.
 
-This baseline is informational and must be updated as implementation progresses.
+Actual video recording, pull-request evidence, and confirmation that every team
+member can explain the architecture remain submission activities; they are not
+claimed by source-code verification.

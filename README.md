@@ -6,15 +6,10 @@ results, standings, and audit records for a fictional racing league.
 The product combines this backend with a separate graphical frontend, PostgreSQL,
 and Keycloak. The frontend authenticates through OpenID Connect, calls the protected
 API over HTTP, and never accesses PostgreSQL directly. This repository is organized
-as a monorepo: the initial NestJS starter lives under `backend/`, while `frontend/`
-is reserved for the React application. Competitor, team, race, registration, and
-result persistence plus the backend/PostgreSQL/Keycloak container infrastructure
-are implemented. NestJS now validates Keycloak access tokens and exposes a protected
-identity endpoints; domain-wide role policies, lazy local profiles, authenticated
-actor attribution, mutation audit events, and administrator audit queries are
-implemented. Administrators can also list profiles and manage their local status.
-Standings and reproducible domain demonstration seeds are implemented. The
-frontend application and its complete container integration are implemented.
+as a monorepo: the NestJS application lives under `backend/` and the React/Vite
+application under `frontend/`. All required domain modules, authentication, audit,
+standings, demonstration seeds, graphical workflows, automated tests, and the full
+container topology are implemented.
 
 ## Objective
 
@@ -43,13 +38,15 @@ See [Project requirements](docs/project-requirements.md) and
 
 ## Technology
 
-The definitive target stack is Node.js LTS, TypeScript, NestJS, TypeORM,
+The definitive stack is Node.js 24, TypeScript, NestJS, TypeORM,
 PostgreSQL, Keycloak, OpenID Connect, OAuth 2.0, Docker, Docker Compose, Jest,
-`@nestjs/testing`, Supertest, `class-validator`, and `class-transformer`.
+`@nestjs/testing`, Supertest, React 19, Vite, TanStack Query, Vitest, Testing
+Library, Playwright, `class-validator`, and `class-transformer`.
 
 Current repository state:
 
-- Package manager: npm (`backend/package-lock.json` is present).
+- Package manager: npm (separate committed lockfiles under `backend/` and
+  `frontend/`).
 - NestJS 11 and TypeScript are installed.
 - Jest, `@nestjs/testing`, and Supertest are installed.
 - ESLint and Prettier are configured.
@@ -68,25 +65,24 @@ Current repository state:
   policies, lazy local profiles, and `GET /api/v1/users/me` are present.
 - A Compose stack for the React frontend, NestJS, PostgreSQL, and Keycloak is
   configured. Reproducible domain demonstration seeds are present.
-- No Node version file or package `engines` constraint is present. The inspected
-  development environment uses Node `v24.13.1`; the selected runtime is Node.js 24 subject to compatibility confirmation.
+- The selected and containerized runtime is Node.js 24.
 
 ## Architecture
 
 NestJS is the resource server and owner of business rules, domain authorization,
 REST behavior, application data, and audit records. Keycloak owns identities,
-credentials, sessions, token issuance, and authorization roles. TypeORM will map
-domain persistence to PostgreSQL and migrations will evolve the schema. The
-frontend will be a separate client of both Keycloak and this API.
+credentials, sessions, token issuance, and authorization roles. TypeORM maps
+domain persistence to PostgreSQL and reviewed migrations evolve the schema. The
+frontend is a separate public client of both Keycloak and this API.
 
-Detailed boundaries and the proposed module layout are in
+Detailed boundaries and the implemented module layout are in
 [Architecture](docs/architecture.md). The conceptual persistence model is in
 [Database model](docs/database-model.md).
 
 ## Prerequisites
 
-- Node.js 24 after dependency compatibility confirmation.
-- npm (the backend currently uses `backend/package-lock.json`).
+- Node.js 24.
+- npm.
 - Docker with Docker Compose, when using the containerized development stack.
 - Alternatively, a locally accessible PostgreSQL instance when running NestJS
   directly with npm.
@@ -95,22 +91,26 @@ Detailed boundaries and the proposed module layout are in
 
 ## Installation
 
-Install the currently declared backend dependencies:
+Install dependencies for direct local development:
 
 ```bash
-cd backend
-npm ci
+npm --prefix backend ci
+npm --prefix frontend ci
 ```
-
-This installs the currently configured backend packages.
 
 ## Environment Configuration
 
-Copy the non-secret template and replace its local database values:
+For the complete Compose stack, create the root environment from its non-secret
+template and replace every password placeholder:
 
 ```bash
-cd backend
 cp .env.example .env
+```
+
+For a backend process run directly with npm, use `backend/.env.example` instead:
+
+```bash
+cp backend/.env.example backend/.env
 ```
 
 The current configuration validates `NODE_ENV`, `PORT`, `DATABASE_HOST`,
@@ -124,7 +124,7 @@ access tokens, or refresh tokens.
 
 ## Development
 
-From `backend/`, the existing starter can be run in watch mode:
+From `backend/`, the API can be run in watch mode:
 
 ```bash
 npm run start:dev
@@ -143,6 +143,10 @@ npm run start:debug
 npm run build
 npm run start:prod
 ```
+
+Run the frontend development server from `frontend/` with `npm run dev`. Its
+validated public variables are documented in `frontend/.env.example`; never place a
+secret in a `VITE_*` variable because it is embedded in the browser bundle.
 
 ## Docker
 
@@ -282,7 +286,18 @@ npm run test:e2e
 ```
 
 The test database uses disposable, non-production credentials and `tmpfs`; stopping
-the Compose project removes its data.
+the Compose project removes its data. Frontend verification runs from `frontend/`:
+
+```bash
+npm test
+npm run lint
+npm run build
+npm run test:e2e
+```
+
+Playwright reuses the containerized frontend on port `5173` when it is running and
+authenticates the three demo roles against real Keycloak. Browser E2E creates unique
+development records and must never target production.
 
 ## Repository Structure
 
@@ -291,18 +306,20 @@ the Compose project removes its data.
 ├── .env.example           # Compose configuration template
 ├── AGENTS.md
 ├── README.md
-├── compose.yml            # Current backend, PostgreSQL, and Keycloak stack
+├── compose.yml            # Complete local product topology
 ├── backend/               # NestJS API application
 │   ├── Dockerfile
-│   ├── src/               # Current starter; target domain modules go here
+│   ├── src/               # Auth, domain, persistence, audit, and standings modules
 │   ├── test/              # Backend E2E tests
 │   ├── package.json
 │   └── package-lock.json
 ├── docs/                  # Authoritative project documentation
-└── frontend/              # Reserved for the React/TypeScript/Vite application
+├── frontend/              # React/TypeScript/Vite application and browser tests
+├── keycloak/              # Realm import and versioned custom login theme
+└── postman/               # Importable API verification suite
 ```
 
-The expected modular `backend/src/` layout is documented in
+The modular `backend/src/` and frontend boundaries are documented in
 [Architecture](docs/architecture.md).
 
 ## Roles
@@ -318,7 +335,7 @@ Keycloak is the role source of truth. They are API-specific client roles under
 
 ## Keycloak Integration
 
-The frontend will use Authorization Code Flow with PKCE. It sends the resulting
+The frontend uses Authorization Code Flow with PKCE S256. It sends the resulting
 Keycloak access token as `Authorization: Bearer <keycloak-access-token>`. NestJS
 validates the RS256 signature through cached/rate-limited JWKS lookup, exact issuer,
 expiration, Bearer token type, and configured audience. It extracts only known
@@ -359,13 +376,13 @@ Validate collection structure and endpoint coverage without contacting the API:
 node postman/validate-collection.mjs
 ```
 
-Current and planned URLs:
+Local component URLs:
 
 | Component  | URL                                           | Status                                        |
 | ---------- | --------------------------------------------- | --------------------------------------------- |
 | NestJS API | `http://localhost:3000/api/v1`                | Current; `/auth/me` and `/users/me` protected |
 | PostgreSQL | Host `localhost:5433`; Docker `postgres:5432` | Current                                       |
-| Frontend   | `http://localhost:5173`                       | Planned, not present                          |
+| Frontend   | `http://localhost:5173`                       | Current graphical application                 |
 | Keycloak   | `http://localhost:8080`                       | Current Docker service                        |
 
 ## Documentation
@@ -381,22 +398,27 @@ Current and planned URLs:
 - [Security](docs/security.md)
 - [Testing](docs/testing.md)
 - [Evaluation checklist](docs/evaluation-checklist.md)
+- [Demonstration and troubleshooting guide](docs/demonstration-guide.md)
+- [Frontend roadmap](frontend/ROADMAP.md)
 
 ## Known Limitations
 
-- Competitor, team, race, registration, result, standings, local-profile behavior,
-  and reproducible domain demonstration seeds are implemented.
-- Audit writes cover profile provisioning and mutations to competitors,
-  teams/memberships, races, registrations, and results;
-  administrators can query them through `/api/v1/audit-logs`.
-- Token validation, documented role policies, and active-profile checks protect all
-  implemented domain controllers. Audit reads and profile administration are
-  administrator-only.
-- The current Compose topology includes NestJS, PostgreSQL, and Keycloak; the
-  frontend container is pending.
-- The mandatory graphical frontend application is not implemented.
-- Domain seeds intentionally contain no identities. Three development-only
-  Keycloak demo identities are provisioned reproducibly by realm import.
+- Local profile administration does not modify Keycloak credentials, sessions, or
+  roles; those remain Keycloak administrator responsibilities.
+- Keycloak login events are not imported into the application audit log. Audit
+  retention and profile anonymization policies are not yet product requirements.
+- The dashboard polls while a race is in progress; there is no WebSocket channel or
+  notification backend.
+- The local stack uses HTTP and a single-node Keycloak cache. Non-local deployment
+  requires TLS, exact redirect/origin configuration, secret management, and a
+  supported high-availability topology where applicable.
+- Realm startup import creates an absent realm but does not overwrite a realm
+  already persisted in PostgreSQL; later realm changes require an administrative
+  migration or an intentional local reset.
+- Browser E2E creates uniquely named development data and is not a production test.
+
+For startup, login, stale-realm, port, migration, proxy, and browser-test recovery,
+follow the [demonstration and troubleshooting guide](docs/demonstration-guide.md).
 
 ## Future Improvements
 

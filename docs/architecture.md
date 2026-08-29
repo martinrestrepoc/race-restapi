@@ -3,26 +3,26 @@
 ## Accepted Decisions
 
 The accepted [Architecture Decision Records](adr/README.md) and
-[implementation roadmap](roadmap.md) supersede earlier pending statements on the
-same topic. Their acceptance does not imply implementation.
+[implementation roadmap](roadmap.md) record the selected architecture. The system
+described here is implemented unless a limitation is explicitly marked.
 
 ## Status
 
-This document defines the target architecture and distinguishes it from the current
-repository. The repository now has the accepted `backend/` and `frontend/`
-monorepo layout. `backend/` contains the default NestJS starter with NestJS 11,
-TypeScript, npm, Jest, `@nestjs/testing`, Supertest, ESLint, and Prettier;
-`frontend/` is currently a placeholder. The backend now has typed environment
-validation, TypeORM/PostgreSQL connection configuration, migration tooling, global
-request validation, the `/api/v1` prefix, and uniform error handling. A multi-stage
-backend image and a Compose topology for NestJS, PostgreSQL, and Keycloak are
-present. Local user profiles, competitor, team, historical-membership, race,
-registration, result, and audit persistence modules and migrations are implemented.
+This document describes the implemented monorepo architecture. `backend/` contains
+the NestJS 11 REST resource server and `frontend/` contains the React/TypeScript/Vite
+single-page application. Typed environment validation, TypeORM/PostgreSQL
+configuration, migration tooling, global request validation, the `/api/v1` prefix,
+and uniform error handling are active. Multi-stage images and the root Compose file
+run the graphical frontend, NestJS, PostgreSQL, database initialization, and
+Keycloak together. Local user profiles, competitor, team, historical-membership,
+race, registration, result, and audit persistence modules and migrations are
+implemented.
 The standings module derives individual and directly registered team rankings from
 official results with PostgreSQL aggregate/window queries; it stores no standings
 state. Reproducible domain demonstration seeds are implemented independently from
-migrations; the frontend application is not yet present. Audit
-writes cover profile provisioning and implemented domain mutations, carry an
+migrations. The frontend consumes only the documented REST contract and provides
+authenticated, role-aware workflows for every implemented module. Audit writes
+cover profile provisioning and implemented domain mutations, carry an
 authenticated profile actor, and are queryable only by administrators. The
 authentication module validates Keycloak tokens and provides
 reusable role/profile guards; domain controllers apply the documented read,
@@ -53,20 +53,21 @@ flowchart LR
 
 ## Definitive Stack
 
-- Node.js 24, subject to dependency compatibility confirmation.
+- Node.js 24
 - TypeScript and NestJS
 - PostgreSQL and TypeORM
 - Keycloak, OpenID Connect, OAuth 2.0, and Keycloak-issued JWT access tokens
 - `class-validator`, `class-transformer`, and a global `ValidationPipe`
 - Docker and Docker Compose
 - Jest, `@nestjs/testing`, and Supertest
-- A separately deployed graphical frontend: React/TypeScript/Vite under `frontend/`.
+- React 19, TypeScript, Vite, React Router, TanStack Query, and `keycloak-js` under
+  `frontend/`
 
 TypeORM and Keycloak are definitive choices. The concrete standards-compatible
 NestJS validation uses Passport JWT with `jwks-rsa`; compatibility with the current
 NestJS 11 and Node.js 24 stack has been confirmed.
 
-## Target Backend Layout
+## Backend Layout
 
 ```text
 backend/src/
@@ -159,10 +160,10 @@ persistence abstraction, or significantly simpler testing.
 - Use NestJS `ValidationPipe` globally with an explicit whitelist/transform policy.
 - Do not automatically reuse input DTOs as entities.
 
-For example, an idiomatic positive numeric field uses decorators such as
-`@IsNumber()` and `@IsPositive()` after the conversion policy is explicit.
-Non-empty strings use `@IsString()` and `@IsNotEmpty()`. Date-in-past/future rules
-may require a custom validator; the exact implementation is `Decision pending`.
+For example, positive numeric fields use `@IsNumber()` and `@IsPositive()` after
+explicit conversion. Non-empty strings use `@IsString()` and `@IsNotEmpty()`.
+Date DTOs require ISO 8601 input; services enforce past/future and transition rules
+through an injectable clock so tests remain deterministic.
 
 ### Response Models
 
@@ -263,9 +264,12 @@ by the specialized endpoints rather than reimplementing scoring.
 - Seeds are separate from migrations.
 - Migrations create schema; seeds populate reproducible non-secret domain samples.
 - Multi-step writes that must stay consistent use database transactions.
-- Concurrency-sensitive operations such as capacity allocation, unique starting
-  positions, and official winner assignment require database constraints and/or
-  locking. The exact strategy is `Decision pending`.
+- Registration creation locks the race row and relies on unique race/competitor and
+  race/starting-position indexes. Approval locks the registration set before
+  checking capacity and eligibility.
+- Result writes run transactionally, lock the race row, and rely on unique
+  registration plus partial unique final-position indexes. Audit writes participate
+  in the same transaction as the domain mutation.
 
 Migration create/generate/run/revert/show scripts are configured against the shared
 TypeORM DataSource. The separate `npm run seed` command requires all migrations to
@@ -274,16 +278,14 @@ identity records and may be run repeatedly without creating duplicates.
 
 ## Docker Topology
 
-The current topology includes the NestJS API, PostgreSQL, a one-shot Keycloak
-database provisioner, and Keycloak 26.7.0. They use explicit environment
-configuration, an isolated network, health checks, and ordered startup dependencies.
-PostgreSQL uses a named volume for both application and identity databases. The
-single local Keycloak instance uses local cache; a multi-instance deployment must
-switch to the supported distributed-cache configuration. The
-backend applies pending TypeORM migrations before starting. The API container runs
-as the unprivileged Node user.
-
-The remaining target additionally includes a frontend container.
+The implemented topology includes PostgreSQL, an idempotent one-shot Keycloak
+database provisioner, Keycloak 26.7.0, the NestJS API, and an Nginx-served frontend.
+It uses explicit environment configuration, an isolated network, health checks,
+and ordered startup dependencies. PostgreSQL uses a named volume for both
+application and identity databases. The backend applies pending TypeORM migrations
+before starting. API and frontend containers run as unprivileged users; the
+frontend runtime is read-only apart from temporary Nginx paths and proxies `/api/`
+to the backend so production browser traffic is same-origin.
 
 Keycloak storage has two valid target patterns:
 
@@ -296,8 +298,9 @@ Selected pattern: one PostgreSQL container with separate application and Keycloa
 Application and Keycloak data persist in the PostgreSQL named volume. Keycloak does
 not use its embedded database. An optimized pinned image enables health and metrics,
 and startup imports the reviewed `race-management` realm when it does not already
-exist. `docker compose up -d --build` is operational for PostgreSQL, Keycloak, and
-the backend; the frontend remains pending.
+exist. The realm selects the versioned `race-management` login theme. A local
+single-node Keycloak uses local cache; high availability requires a supported
+distributed-cache configuration.
 
 ## Frontend Boundary
 
@@ -320,6 +323,11 @@ validation. The current schema defines `NODE_ENV`, `PORT`, `DATABASE_HOST`,
 `.env` files remain ignored. The issuer is validated against the base URL and realm;
 the JWKS URI is independently configurable so container networking may use an
 internal Keycloak hostname.
+
+The frontend build validates `VITE_API_BASE_URL`, `VITE_KEYCLOAK_URL`,
+`VITE_KEYCLOAK_REALM`, and `VITE_KEYCLOAK_CLIENT_ID`. The root `.env.example`
+documents Compose ports, PostgreSQL and Keycloak bootstrap settings, and browser
+URLs. The public frontend client has no secret. Local `.env` files remain ignored.
 
 ## Related Documentation
 

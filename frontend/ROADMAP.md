@@ -5,9 +5,9 @@
 This roadmap defines the phased implementation of the complete graphical frontend
 for the Great EIA Camel vs. Dwarf Racing System.
 
-The frontend will be a separate React, TypeScript, and Vite application under
-`frontend/`. It will authenticate with Keycloak through OpenID Connect Authorization
-Code Flow with PKCE and consume only the existing NestJS REST API under `/api/v1`.
+The frontend is a separate React, TypeScript, and Vite application under
+`frontend/`. It authenticates with Keycloak through OpenID Connect Authorization
+Code Flow with PKCE and consumes only the existing NestJS REST API under `/api/v1`.
 It must never access PostgreSQL directly.
 
 The files under `frontend/design-reference/premium-v0/` are an immutable visual
@@ -16,24 +16,24 @@ source of business rules.
 
 ## Implementation Status
 
-| Phase    | Status      | Notes                                                                                                                                                                          |
-| -------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Phase 0  | In progress | Contract fidelity and date-time decisions are accepted; the remaining endpoint/action matrices are pending.                                                                    |
-| Phase 1  | Complete    | Scaffold, strict TypeScript, Tailwind v4, local fonts, environment validation, quality tooling, npm lockfile, tests, and production build are verified.                        |
-| Phase 2  | Complete    | Responsive shell, navigation, visual primitives, forms, feedback states, dialog focus behavior, enum labels, tests, and browser visual QA are verified.                        |
-| Phase 3  | Complete    | Keycloak PKCE, API-backed identity/profile, gates, logout, and role navigation are verified with all three real demo identities and automated tests.                           |
-| Phase 4  | Complete    | Authenticated REST client, contract types, query serialization, API errors, TanStack Query policies, invalidation, cancellation, and MSW tests verified.                       |
-| Phase 5  | Complete    | Definitive protected routes, role gates, contextual navigation, and a responsive real-data dashboard with isolated states and fixed request bounds verified.                   |
-| Phase 6  | Complete    | Competitor list, URL filters, detail, administrator CRUD/status workflow, exact validation, conflict feedback, confirmations, and tests are verified.                          |
-| Phase 7  | Complete    | Team CRUD/status workflow, URL filters, current/history memberships, member management, conflict feedback, cache invalidation, and tests are verified.                         |
-| Phase 8  | Complete    | Race list/detail, browser-local date input, UTC conversion, draft editing, lifecycle transitions, delete/cancel behavior, role gates, and tests are verified.                  |
-| Phase 9  | Complete    | Race-scoped registration, participant search, approval/rejection, starting-position conflicts, role gates, and tests are verified.                                             |
-| Phase 10 | Complete    | Conditional result capture, official timing, audited correction, lifecycle conflicts, role gates, and tests are verified.                                                      |
-| Phase 11 | Complete    | Competitor/team standings, user administration, audit inspection, profile, logout, role gates, and tests are verified.                                                         |
-| Phase 12 | Complete    | Failure recovery, accessibility hardening, responsive/code-split UI, and the branded Keycloak theme are verified.                                                              |
-| Phase 13 | Complete    | 96 deterministic unit/component/MSW tests and four real-browser Keycloak, role, conflict, workflow, standings, and audit scenarios are verified.                               |
-| Phase 14 | Complete    | Multi-stage unprivileged frontend image, SPA fallback, same-origin API proxy, cache/security headers, healthchecks, Compose startup, restart, and E2E acceptance are verified. |
-| Phase 15 | Pending     | Continue only through the phased delivery process below.                                                                                                                       |
+| Phase    | Status   | Notes                                                                                                                                                                          |
+| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Phase 0  | Complete | Contract fidelity, endpoint/action routes, role gates, date-time conversion, and excluded v0-only concepts are represented in implementation and tests.                        |
+| Phase 1  | Complete | Scaffold, strict TypeScript, Tailwind v4, local fonts, environment validation, quality tooling, npm lockfile, tests, and production build are verified.                        |
+| Phase 2  | Complete | Responsive shell, navigation, visual primitives, forms, feedback states, dialog focus behavior, enum labels, tests, and browser visual QA are verified.                        |
+| Phase 3  | Complete | Keycloak PKCE, API-backed identity/profile, gates, logout, and role navigation are verified with all three real demo identities and automated tests.                           |
+| Phase 4  | Complete | Authenticated REST client, contract types, query serialization, API errors, TanStack Query policies, invalidation, cancellation, and MSW tests verified.                       |
+| Phase 5  | Complete | Definitive protected routes, role gates, contextual navigation, and a responsive real-data dashboard with isolated states and fixed request bounds verified.                   |
+| Phase 6  | Complete | Competitor list, URL filters, detail, administrator CRUD/status workflow, exact validation, conflict feedback, confirmations, and tests are verified.                          |
+| Phase 7  | Complete | Team CRUD/status workflow, URL filters, current/history memberships, member management, conflict feedback, cache invalidation, and tests are verified.                         |
+| Phase 8  | Complete | Race list/detail, browser-local date input, UTC conversion, draft editing, lifecycle transitions, delete/cancel behavior, role gates, and tests are verified.                  |
+| Phase 9  | Complete | Race-scoped registration, participant search, approval/rejection, starting-position conflicts, role gates, and tests are verified.                                             |
+| Phase 10 | Complete | Conditional result capture, official timing, audited correction, lifecycle conflicts, role gates, and tests are verified.                                                      |
+| Phase 11 | Complete | Competitor/team standings, user administration, audit inspection, profile, logout, role gates, and tests are verified.                                                         |
+| Phase 12 | Complete | Failure recovery, accessibility hardening, responsive/code-split UI, and the branded Keycloak theme are verified.                                                              |
+| Phase 13 | Complete | 96 deterministic unit/component/MSW tests and four real-browser Keycloak, role, conflict, workflow, standings, and audit scenarios are verified.                               |
+| Phase 14 | Complete | Multi-stage unprivileged frontend image, SPA fallback, same-origin API proxy, cache/security headers, healthchecks, Compose startup, restart, and E2E acceptance are verified. |
+| Phase 15 | Complete | Setup, architecture, security, testing, evaluation, theme, limitations, troubleshooting, and a repeatable demonstration workflow are documented and verified.                  |
 
 ## Sources of Truth
 
@@ -86,7 +86,7 @@ introduced. The frontend must not add another application-wide state manager unl
 a demonstrated need remains after using React state, URL state, authentication
 context, and TanStack Query.
 
-## Target Structure
+## Implemented Structure
 
 ```text
 frontend/
@@ -153,6 +153,11 @@ frontend/
 - Ensure forms and dialogs are usable by keyboard and have visible focus states.
 
 ## Phase 0 - Contract and Product Alignment
+
+**Status: Complete.** Resource modules, API contract types, protected route map,
+navigation, and action gates implement the endpoint and role matrices. Automated
+tests cover the mapping, the accepted browser-local/UTC conversion, and the
+exclusion of mock-only domain concepts.
 
 ### Objectives
 
@@ -788,6 +793,11 @@ complete.
   configuration, not development dependencies or source secrets.
 
 ## Phase 15 - Documentation, Evaluation, and Demonstration Readiness
+
+**Status: Complete.** The root/frontend setup, system decisions, Keycloak theme,
+known limitations, troubleshooting, evaluation traceability, and timed
+demonstration workflow now describe the verified implementation. Final recording
+and team presentation remain delivery activities outside source implementation.
 
 ### Work
 

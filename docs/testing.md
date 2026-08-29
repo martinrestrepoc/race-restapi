@@ -3,8 +3,8 @@
 ## Accepted Decisions
 
 The accepted [Architecture Decision Records](adr/README.md) and
-[implementation roadmap](roadmap.md) supersede earlier pending statements on the
-same topic. Their acceptance does not imply implementation.
+[implementation roadmap](roadmap.md) record the selected test strategy. The suites
+described below are implemented.
 
 ## Current State
 
@@ -38,12 +38,12 @@ tests and 9 dedicated security tests run as separate suites and are not combined
 into these instrumentation percentages.
 
 The 15 mandatory academic scenarios are represented across unit, PostgreSQL-backed
-E2E, and dedicated JWT/JWKS suites. Rules intentionally left as `Decision pending`
-are not encoded as invented expectations. The now-confirmed standings scoring and
-tie policy are encoded explicitly.
+E2E, and dedicated JWT/JWKS suites. The still-unspecified audit-retention and
+profile-anonymization policies are not encoded as invented expectations. The
+confirmed standings scoring and tie policy are encoded explicitly.
 
-The target suite must contain at least 15 meaningful automated tests. Getter/setter
-tests do not count.
+The suite exceeds the required 15 meaningful automated tests. Getter/setter tests
+do not count toward that requirement.
 
 ## Test Levels
 
@@ -142,8 +142,8 @@ Use a controllable clock for deadline/past-date tests so tests do not become fla
 - Verify only administrators can read the complete audit log.
 - Verify sensitive fields never appear in response DTOs or audit snapshots.
 
-Rules with `Decision pending` should receive tests only after the missing decision is
-confirmed and documented.
+Retention or anonymization behavior should receive tests only after a product
+policy is confirmed and documented.
 
 ## Required Security Scenarios
 
@@ -243,12 +243,13 @@ npm test
 npm run test:e2e
 ```
 
-The Playwright suite starts a production Vite preview on `localhost:5173` and
-proxies `/api/v1` to the real local NestJS service. PostgreSQL, Keycloak, and the
-backend must already be active. It runs sequentially, authenticates all three demo
-roles through Keycloak, and exercises field validation, authorization, an
-authoritative conflict, the branded login/recovery experience, and the complete
-racing workflow through standings and audit.
+The Playwright suite reuses an already running frontend on `localhost:5173`—the
+root Compose service in final acceptance—or starts a production Vite preview when
+the port is free. In both modes `/api/v1` reaches the real local NestJS service.
+PostgreSQL, Keycloak, and the backend must already be active. It runs sequentially,
+authenticates all three demo roles through Keycloak, and exercises field validation,
+authorization, an authoritative conflict, the branded login/recovery experience,
+and the complete racing workflow through standings and audit.
 
 Credentials are loaded from external `E2E_*_PASSWORD` variables or the ignored
 repository-root `KEYCLOAK_DEMO_*_PASSWORD` variables. They must never be committed
@@ -286,15 +287,10 @@ membership tables; it must never target development or production data. The root
 default. Its data directory is a `tmpfs` and its static credentials are exclusively
 for local tests.
 
-No separate integration-test or container-test script exists. `npm run seed` loads
-the independently defined, transactional demonstration dataset after checking that
-no migrations are pending.
-
-```text
-Recommended script - not currently configured: test:integration
-```
-
-Do not add scripts until the corresponding implementation and environment exist.
+There is no redundant `test:integration` script: `npm run test:e2e` owns the
+PostgreSQL migration, constraint, transaction, locking, and HTTP integration
+boundary. `npm run seed` loads the independently defined, transactional
+demonstration dataset after checking that no migrations are pending.
 
 ## Completion Evidence
 
@@ -304,6 +300,8 @@ Before completing an implementation change:
 - Run `npm test` and `npm run test:e2e` when shared behavior changed.
 - Run `npm run build`.
 - Run lint in awareness that the current script applies fixes.
+- Validate `docker compose config --quiet`, service health, same-origin API proxy,
+  and the containerized Playwright workflow before a release demonstration.
 - Record any unavailable environment-dependent suite honestly.
 - Confirm new/changed domain rules are reflected in
   [Business rules](business-rules.md).

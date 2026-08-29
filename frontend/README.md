@@ -4,8 +4,8 @@ React, TypeScript, and Vite application for the Great EIA Camel vs. Dwarf Racing
 System. Follow the phased work in the
 [Frontend Implementation Roadmap](ROADMAP.md).
 
-The application will authenticate directly with Keycloak using Authorization Code
-Flow with PKCE and consume the NestJS REST API. It must never connect directly to
+The application authenticates directly with Keycloak using Authorization Code
+Flow with PKCE and consumes the NestJS REST API. It never connects directly to
 PostgreSQL.
 
 The files under `design-reference/premium-v0/` provide visual direction only. The
@@ -14,7 +14,7 @@ values, roles, validation, and business behavior.
 
 ## Current status
 
-Phases 1 through 14 are complete. Authentication and authorization have been
+Phases 0 through 15 are complete. Authentication and authorization have been
 verified against the Dockerized Keycloak and NestJS services with the
 administrator, race-organizer, and viewer demo identities. The application uses
 Keycloak Authorization Code Flow with PKCE S256, obtains effective roles from
@@ -170,3 +170,33 @@ keep both aligned. `VITE_KEYCLOAK_URL` is compiled from the public
 The runtime filesystem is read-only except for an in-memory `/tmp`, runs as the
 `nginx` user, and contains no source files, tests, Node dependencies, or secrets.
 Hashed assets are cached immutably while `index.html` is never cached.
+
+## Design traceability
+
+The immutable v0 reference contributed the dark studio palette, electric-lime
+accent, Oswald/Inter/monospace typography, compact sidebar, KPI cards, bordered
+panels, and dense data tables. Those patterns were rebuilt as responsive,
+keyboard-accessible React components.
+
+Production behavior deliberately differs from the mock: every field, enum, action,
+role, identifier, result time, and statistic maps to the backend contract. The
+global fake search, role impersonation switch, invented notifications and live
+states, mock identifiers, and unsupported statuses were removed. Runtime code does
+not import the design reference or its mock `data.ts`.
+
+## Known limitations and troubleshooting
+
+- Live dashboard information uses bounded polling rather than WebSockets, and
+  there is no notifications API.
+- User administration controls local application access only; Keycloak owns roles,
+  credentials, sessions, and recovery.
+- The browser displays and edits race dates in its current IANA time zone and sends
+  the represented instant as ISO 8601 UTC. Collaborators in different zones will
+  see the same instant rendered in their own zone.
+- The local Compose environment uses HTTP. A non-local deployment must use TLS and
+  exact Keycloak origins, redirect URIs, and logout URIs.
+- Playwright creates uniquely named development data and must not target production.
+
+For unhealthy containers, occupied ports, stale realm imports, login redirects,
+migrations, API proxy errors, and test recovery, use the repository
+[demonstration and troubleshooting guide](../docs/demonstration-guide.md).

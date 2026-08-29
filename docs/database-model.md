@@ -3,8 +3,8 @@
 ## Accepted Decisions
 
 The accepted [Architecture Decision Records](adr/README.md) and
-[implementation roadmap](roadmap.md) supersede earlier pending statements on the
-same topic. Their acceptance does not imply implementation.
+[implementation roadmap](roadmap.md) record the selected persistence design. The
+entities and constraints described below are implemented unless noted otherwise.
 
 ## Ownership Boundary
 
@@ -327,8 +327,11 @@ team membership, starting positions, and official finishing positions. Use
 PostgreSQL constraints where expressible and transactions/locking where a check and
 write must be atomic. Team membership uses a partial unique index on
 `competitorId` where `leftAt` is null, and membership capacity is checked while the
-team row is locked. The corresponding strategy for registrations and results is
-`Decision pending` until those schemas are designed.
+team row is locked. Registration writes lock the race and registration set as
+needed, with unique indexes for participant and starting position within a race.
+Result writes lock the race, enforce one result per registration, and use a partial
+unique index for official final positions. Domain and audit writes share their
+transaction boundary.
 
 ## Schema Evolution and Seeds
 
@@ -340,11 +343,12 @@ team row is locked. The corresponding strategy for registrations and results is
   PostgreSQL application seeds.
 - Do not place real credentials in migrations, seeds, or realm exports.
 
-Competitor, team/membership, race, registration, and result migrations exist. Race
-organizer, registration actor, and result recorder columns are temporarily nullable
-until authenticated local user profiles are introduced; the API does not accept
-client-supplied actor identities. The domain demonstration seed creates nine
-competitors, two teams with six memberships, three races, and five approved
+User-profile, competitor, team/membership, race, registration, result, and audit
+migrations exist. Actor columns remain schema-nullable so identity-free
+demonstration seeds and historical rows are reproducible, but authenticated runtime
+mutations always resolve the validated Keycloak subject to a local profile; the API
+does not accept client-supplied actor identities. The domain demonstration seed
+creates nine competitors, two teams with six memberships, three races, and five approved
 registrations/results for the completed race. It creates no `UserProfile`; nullable
 organizer/actor fields remain null so Keycloak and lazy authenticated provisioning
 remain the only identity sources.

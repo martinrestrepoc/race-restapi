@@ -6,10 +6,10 @@ relevant unit, integration, and E2E tests are present.
 
 ## Current Status
 
-1. **Technical foundation — substantially implemented.** Typed configuration,
+1. **Technical foundation — implemented.** Typed configuration,
    PostgreSQL/TypeORM, reviewed migrations, Docker Compose, `/api/v1`, global
    validation, uniform errors, pagination, and a disposable E2E database topology
-   are present. Seeds remain pending.
+   and reproducible demonstration seeds are present.
 2. **Security, local profiles, and authenticated audit actors — implemented.**
    Compatible Passport JWT/JWKS dependencies and typed Keycloak configuration are
    present. Persistent Keycloak infrastructure, the API/frontend clients, client
@@ -48,9 +48,18 @@ relevant unit, integration, and E2E tests are present.
    are enforced, and registration transitions, audit queries, and profile
    administration have expanded unit coverage. The complete unit, E2E, and JWT/JWKS
    security suites are maintained independently.
+10. **Graphical frontend and deployment — implemented.** The React/Vite application
+    covers every REST module with real Keycloak PKCE authentication, role-aware
+    routes, responsive/accessibility states, contract-level component tests, and a
+    real-browser workflow. The root Compose topology includes the hardened frontend
+    runtime and same-origin API proxy.
+11. **Documentation and demonstration readiness — implemented.** Setup, security,
+    architecture, testing, known limitations, evaluation traceability, Keycloak
+    theming, troubleshooting, and a timed team demonstration workflow are current.
 
 ## Next Increment
 
-Reproducible domain demonstration seeds are implemented with fixed UUIDs,
-transactional idempotency, migration preflight, and PostgreSQL E2E verification.
-The next major increment is frontend work.
+The mandatory product scope is complete. Further increments are optional product
+evolution: production TLS/hosting and high availability, realtime updates, Keycloak
+administration integration, or retention/anonymization policies. Each requires an
+explicit requirement and the same contract, migration, security, and test review.
