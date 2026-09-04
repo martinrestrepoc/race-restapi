@@ -25,8 +25,44 @@ import {
   localDateTimeToIso,
   toLocalDateTimeInput,
 } from '@/pages/races/race-view';
+import { auditLabel } from './audit-view';
 
 const pageSizes = [10, 20, 50] as const;
+const auditActions = [
+  'COMPETITOR_CREATED',
+  'COMPETITOR_DELETED',
+  'COMPETITOR_RETIRED',
+  'COMPETITOR_STATUS_CHANGED',
+  'COMPETITOR_UPDATED',
+  'RACE_CANCELLED',
+  'RACE_CREATED',
+  'RACE_DELETED',
+  'RACE_UPDATED',
+  'REGISTRATION_APPROVED',
+  'REGISTRATION_CANCELLED',
+  'REGISTRATION_CREATED',
+  'REGISTRATION_REJECTED',
+  'RESULT_CORRECTED',
+  'RESULT_CREATED',
+  'TEAM_CREATED',
+  'TEAM_DEACTIVATED',
+  'TEAM_DELETED',
+  'TEAM_MEMBER_ADDED',
+  'TEAM_MEMBER_REMOVED',
+  'TEAM_STATUS_CHANGED',
+  'TEAM_UPDATED',
+  'USER_PROFILE_CREATED',
+  'USER_PROFILE_STATUS_CHANGED',
+] as const;
+const auditEntityTypes = [
+  'COMPETITOR',
+  'RACE',
+  'RACE_REGISTRATION',
+  'RACE_RESULT',
+  'TEAM',
+  'TEAM_MEMBER',
+  'USER_PROFILE',
+] as const;
 
 export function AuditListPage() {
   const { resources } = useApi();
@@ -34,8 +70,6 @@ export function AuditListPage() {
   const query = readQuery(searchParams);
   const [action, setAction] = useState(query.action ?? '');
   const [entityType, setEntityType] = useState(query.entityType ?? '');
-  const [actorId, setActorId] = useState(query.actorUserProfileId ?? '');
-  const [entityId, setEntityId] = useState(query.entityId ?? '');
   const [from, setFrom] = useState(
     query.from ? toLocalDateTimeInput(query.from) : '',
   );
@@ -50,9 +84,6 @@ export function AuditListPage() {
     const params = new URLSearchParams();
     if (next.action) params.set('action', next.action);
     if (next.entityType) params.set('entityType', next.entityType);
-    if (next.actorUserProfileId)
-      params.set('actorUserProfileId', next.actorUserProfileId);
-    if (next.entityId) params.set('entityId', next.entityId);
     if (next.from) params.set('from', next.from);
     if (next.to) params.set('to', next.to);
     if (next.page && next.page !== 1) params.set('page', String(next.page));
@@ -74,8 +105,6 @@ export function AuditListPage() {
     setFilterError(null);
     applyQuery({
       ...(action.trim() ? { action: action.trim().toUpperCase() } : {}),
-      ...(actorId.trim() ? { actorUserProfileId: actorId.trim() } : {}),
-      ...(entityId.trim() ? { entityId: entityId.trim() } : {}),
       ...(entityType.trim()
         ? { entityType: entityType.trim().toUpperCase() }
         : {}),
@@ -97,7 +126,7 @@ export function AuditListPage() {
         />
       ) : null}
       <PageHeader
-        description="Registro inmutable de operaciones relevantes. No existen controles para crear, editar o eliminar eventos."
+        description="Consulta el historial de cambios importantes realizados en la liga."
         eyebrow="Administración"
         title="Auditoría"
       />
@@ -111,42 +140,34 @@ export function AuditListPage() {
           }
         >
           <FormField htmlFor="audit-action" label="Acción">
-            <input
+            <select
               className={fieldControlClassName}
               id="audit-action"
-              maxLength={100}
               onChange={(event) => setAction(event.target.value)}
-              placeholder="RESULT_CORRECTED"
               value={action}
-            />
+            >
+              <option value="">Todas</option>
+              {auditActions.map((value) => (
+                <option key={value} value={value}>
+                  {auditLabel(value)}
+                </option>
+              ))}
+            </select>
           </FormField>
-          <FormField htmlFor="audit-entity-type" label="Tipo de entidad">
-            <input
+          <FormField htmlFor="audit-entity-type" label="Elemento">
+            <select
               className={fieldControlClassName}
               id="audit-entity-type"
-              maxLength={100}
               onChange={(event) => setEntityType(event.target.value)}
-              placeholder="RACE_RESULT"
               value={entityType}
-            />
-          </FormField>
-          <FormField htmlFor="audit-actor" label="ID del actor">
-            <input
-              className={fieldControlClassName}
-              id="audit-actor"
-              onChange={(event) => setActorId(event.target.value)}
-              placeholder="UUID del perfil"
-              value={actorId}
-            />
-          </FormField>
-          <FormField htmlFor="audit-entity" label="ID de la entidad">
-            <input
-              className={fieldControlClassName}
-              id="audit-entity"
-              onChange={(event) => setEntityId(event.target.value)}
-              placeholder="UUID"
-              value={entityId}
-            />
+            >
+              <option value="">Todos</option>
+              {auditEntityTypes.map((value) => (
+                <option key={value} value={value}>
+                  {auditLabel(value)}
+                </option>
+              ))}
+            </select>
           </FormField>
           <FormField htmlFor="audit-from" label="Desde">
             <input
@@ -201,7 +222,7 @@ export function AuditListPage() {
           <LoadingState />
         ) : audit.isError ? (
           <ErrorState
-            description="No fue posible consultar la auditoría. Revisa que los identificadores y fechas sean válidos."
+            description="No fue posible consultar el historial. Revisa las fechas e intenta nuevamente."
             onRetry={() => void audit.refetch()}
             title="Error al cargar"
           />
@@ -244,41 +265,24 @@ const auditColumns = [
         className="font-mono text-xs font-semibold text-primary hover:underline"
         to={`/audit/${entry.id}`}
       >
-        {entry.action}
+        {auditLabel(entry.action)}
       </Link>
     ),
   },
   {
-    header: 'Entidad',
+    header: 'Elemento',
     key: 'entity',
     render: (entry: AuditLog) => (
-      <div>
-        <span className="text-xs font-semibold">{entry.entityType}</span>
-        <p className="max-w-48 break-all font-mono text-[11px] text-muted-foreground">
-          {entry.entityId}
-        </p>
-      </div>
+      <span className="text-xs font-semibold">
+        {auditLabel(entry.entityType)}
+      </span>
     ),
   },
   {
     header: 'Actor',
     key: 'actor',
     render: (entry: AuditLog) =>
-      entry.actorUserProfileId ? (
-        <Link
-          className="max-w-48 break-all font-mono text-[11px] hover:text-primary"
-          to={`/users/${entry.actorUserProfileId}`}
-        >
-          {entry.actorUserProfileId}
-        </Link>
-      ) : (
-        '—'
-      ),
-  },
-  {
-    header: 'Descripción',
-    key: 'description',
-    render: (entry: AuditLog) => entry.description ?? '—',
+      entry.actorUserProfileId ? 'Usuario' : 'Sistema',
   },
 ];
 
@@ -287,15 +291,11 @@ function readQuery(
 ): Required<Pick<AuditLogQuery, 'limit' | 'page'>> & AuditLogQuery {
   const limitCandidate = safeInteger(params.get('limit'), 20);
   const action = params.get('action')?.trim().slice(0, 100);
-  const actorUserProfileId = params.get('actorUserProfileId')?.trim();
-  const entityId = params.get('entityId')?.trim();
   const entityType = params.get('entityType')?.trim().slice(0, 100);
   const from = validIso(params.get('from'));
   const to = validIso(params.get('to'));
   return {
     ...(action ? { action } : {}),
-    ...(actorUserProfileId ? { actorUserProfileId } : {}),
-    ...(entityId ? { entityId } : {}),
     ...(entityType ? { entityType } : {}),
     ...(from ? { from } : {}),
     limit: pageSizes.includes(limitCandidate as (typeof pageSizes)[number])

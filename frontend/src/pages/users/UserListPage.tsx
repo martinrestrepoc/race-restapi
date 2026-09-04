@@ -78,7 +78,7 @@ export function UserListPage() {
             Ver auditoría
           </Link>
         }
-        description="Perfiles locales vinculados a identidades de Keycloak. Aquí no se administran credenciales ni roles."
+        description="Consulta y administra el acceso de los usuarios a la aplicación."
         eyebrow="Administración"
         title="Usuarios"
       />

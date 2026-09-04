@@ -5,6 +5,7 @@ export class ResultResponseDto {
   id: string;
   raceId: string;
   registrationId: string;
+  participantName: string;
   startingPosition: number;
   finalPosition: number | null;
   rawTimeMs: number | null;
@@ -21,6 +22,10 @@ export class ResultResponseDto {
       id: result.id,
       raceId: result.raceId,
       registrationId: result.registrationId,
+      participantName:
+        result.registration?.competitor?.name ??
+        result.registration?.team?.name ??
+        'Participante',
       startingPosition: result.startingPosition,
       finalPosition: result.finalPosition,
       rawTimeMs: result.rawTimeMs,

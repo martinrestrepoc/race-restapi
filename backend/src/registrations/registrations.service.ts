@@ -79,8 +79,10 @@ export class RegistrationsService {
         }
         this.ensureRegistrationWindowOpen(race);
 
+        let competitor: Competitor | null = null;
+        let team: Team | null = null;
         if (dto.competitorId) {
-          await this.validateIndividual(
+          competitor = await this.validateIndividual(
             race,
             dto.competitorId,
             competitors,
@@ -88,14 +90,21 @@ export class RegistrationsService {
             memberships,
           );
         } else {
-          await this.validateTeam(race, dto.teamId!, teams, registrations);
+          team = await this.validateTeam(
+            race,
+            dto.teamId!,
+            teams,
+            registrations,
+          );
         }
 
         const registration = registrations.create({
           raceId,
           race,
           competitorId: dto.competitorId ?? null,
+          competitor,
           teamId: dto.teamId ?? null,
+          team,
           status: RegistrationStatus.PENDING,
           startingPosition: null,
           validationNotes: null,
@@ -137,6 +146,7 @@ export class RegistrationsService {
     const [items, totalItems] = await this.registrationsRepository.findAndCount(
       {
         where,
+        relations: { competitor: true, team: true },
         order: { registeredAt: 'DESC', id: 'ASC' },
         skip: (query.page - 1) * query.limit,
         take: query.limit,
@@ -154,7 +164,7 @@ export class RegistrationsService {
   async findOne(id: string): Promise<RaceRegistration> {
     const registration = await this.registrationsRepository.findOne({
       where: { id },
-      relations: { race: true },
+      relations: { competitor: true, race: true, team: true },
     });
     if (!registration) {
       throw new NotFoundException(`Registration with ID ${id} was not found`);
@@ -227,7 +237,12 @@ export class RegistrationsService {
           },
           manager,
         );
-        return saved;
+        return (
+          (await registrations.findOne({
+            where: { id: saved.id },
+            relations: { competitor: true, team: true },
+          })) ?? saved
+        );
       });
     } catch (error) {
       if (hasPostgresErrorCode(error, '23505')) {
@@ -320,7 +335,7 @@ export class RegistrationsService {
     competitorsRepository: Repository<Competitor>,
     registrationsRepository: Repository<RaceRegistration>,
     teamMembersRepository: Repository<TeamMember>,
-  ): Promise<void> {
+  ): Promise<Competitor> {
     if (race.type === RaceType.TEAM) {
       throw new ConflictException(
         'Individual participants cannot enter a team race',
@@ -360,6 +375,7 @@ export class RegistrationsService {
         'Competitor is already participating through a registered team',
       );
     }
+    return competitor;
   }
 
   private async validateTeam(
@@ -367,7 +383,7 @@ export class RegistrationsService {
     teamId: string,
     teamsRepository: Repository<Team>,
     registrationsRepository: Repository<RaceRegistration>,
-  ): Promise<void> {
+  ): Promise<Team> {
     if (race.type === RaceType.INDIVIDUAL) {
       throw new ConflictException('Teams cannot enter an individual race');
     }
@@ -412,5 +428,6 @@ export class RegistrationsService {
         'A team member is already registered individually in this race',
       );
     }
+    return team;
   }
 }

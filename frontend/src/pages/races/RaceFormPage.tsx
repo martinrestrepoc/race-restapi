@@ -258,13 +258,13 @@ export function RaceFormPage() {
         description={
           isEditing
             ? 'Solo las carreras en borrador admiten una actualización completa.'
-            : 'La API asignará automáticamente el estado Borrador y tu perfil como organizador.'
+            : 'La carrera se creará inicialmente como borrador.'
         }
         eyebrow="Gestión de carreras"
         title={isEditing ? 'Editar carrera' : 'Nueva carrera'}
       />
       <Panel
-        description={`Las fechas se ingresan en ${timeZone} y se envían a la API en UTC.`}
+        description={`Las fechas se ingresan en la zona horaria ${timeZone}.`}
         title="Información de la carrera"
       >
         <form

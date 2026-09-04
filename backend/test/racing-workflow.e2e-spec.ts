@@ -20,6 +20,7 @@ interface ProfileBody {
 
 interface CompetitorBody {
   id: string;
+  name: string;
   status: CompetitorStatus;
 }
 
@@ -31,6 +32,7 @@ interface RaceBody {
 
 interface RegistrationBody {
   id: string;
+  participantName: string;
   status: RegistrationStatus;
   startingPosition: number | null;
   performedByUserProfileId: string;
@@ -41,6 +43,7 @@ interface ResultBody {
   status: ResultStatus;
   finalPosition: number | null;
   finalTimeMs: number | null;
+  participantName: string;
   recordedByUserProfileId: string;
 }
 
@@ -146,6 +149,7 @@ describe('Complete racing workflow (e2e)', () => {
     const approvedFirst = await approveRegistration(firstRegistration.id, 1);
     const approvedSecond = await approveRegistration(secondRegistration.id, 2);
     expect(approvedFirst).toMatchObject({
+      participantName: firstCompetitor.name,
       status: RegistrationStatus.APPROVED,
       startingPosition: 1,
       performedByUserProfileId: actor.id,
@@ -165,6 +169,7 @@ describe('Complete racing workflow (e2e)', () => {
     expect(winner).toMatchObject({
       finalPosition: 1,
       finalTimeMs: 90_500,
+      participantName: firstCompetitor.name,
       recordedByUserProfileId: actor.id,
     });
 
@@ -216,6 +221,10 @@ describe('Complete racing workflow (e2e)', () => {
     const results = resultsResponse.body as CollectionBody<ResultBody>;
     expect(results.totalItems).toBe(2);
     expect(results.items.map((item) => item.finalPosition)).toEqual([1, 2]);
+    expect(results.items.map((item) => item.participantName)).toEqual([
+      firstCompetitor.name,
+      secondCompetitor.name,
+    ]);
 
     const auditResponse = await request(administratorApp.getHttpServer())
       .get('/api/v1/audit-logs')
@@ -277,6 +286,7 @@ describe('Complete racing workflow (e2e)', () => {
     const registrations =
       registrationsResponse.body as CollectionBody<RegistrationBody>;
     expect(registrations.totalItems).toBe(1);
+    expect(registrations.items[0]?.participantName).toBe(active.name);
   });
 
   it('enforces viewer and organizer authorization boundaries', async () => {

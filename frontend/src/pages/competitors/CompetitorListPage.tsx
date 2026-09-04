@@ -120,7 +120,7 @@ export function CompetitorListPage() {
             </Link>
           ) : undefined
         }
-        description="Consulta el registro oficial con los filtros, el orden y la paginación provistos por la API."
+        description="Consulta y administra los competidores de la liga."
         eyebrow="Registro deportivo"
         title="Competidores"
       />

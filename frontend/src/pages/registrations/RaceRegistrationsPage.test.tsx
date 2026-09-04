@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -36,6 +36,7 @@ const race: Race = {
 const registration: Registration = {
   competitorId,
   id: registrationId,
+  participantName: 'Competidor activo',
   performedByUserProfileId: null,
   raceId,
   registeredAt: '2026-08-19T12:00:00.000Z',
@@ -94,10 +95,17 @@ describe('registrations vertical slice', () => {
     const fetchMock = mockApi({ role: 'RACE_ORGANIZER' });
     renderApplication();
 
-    await user.selectOptions(
-      await screen.findByLabelText('Participante'),
-      competitorId,
+    await user.click(
+      await screen.findByRole('combobox', {
+        name: /Buscar competidor activo/,
+      }),
     );
+    await user.click(
+      await screen.findByRole('option', { name: 'Competidor activo' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Inscribir participante' }),
+    ).toBeEnabled();
     await user.click(
       screen.getByRole('button', { name: 'Inscribir participante' }),
     );
@@ -120,8 +128,14 @@ describe('registrations vertical slice', () => {
     mockApi({ createConflict: true, role: 'RACE_ORGANIZER' });
     renderApplication();
 
-    const select = await screen.findByLabelText('Participante');
-    await user.selectOptions(select, competitorId);
+    const search = await screen.findByRole('combobox', {
+      name: /Buscar competidor activo/,
+    });
+    expect(search.closest('section')).toHaveClass('overflow-visible');
+    await user.click(search);
+    await user.click(
+      await screen.findByRole('option', { name: 'Competidor activo' }),
+    );
     await user.click(
       screen.getByRole('button', { name: 'Inscribir participante' }),
     );
@@ -131,7 +145,7 @@ describe('registrations vertical slice', () => {
         'El participante ya está inscrito en esta carrera.',
       ),
     ).toBeInTheDocument();
-    expect(select).toHaveValue(competitorId);
+    expect(search).toHaveValue('Competidor activo');
   });
 
   it('approves only with a positive integer and preserves it on conflict', async () => {
@@ -144,6 +158,10 @@ describe('registrations vertical slice', () => {
     });
     renderApplication();
 
+    expect(
+      (await screen.findAllByText('Competidor activo')).length,
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(competitorId)).not.toBeInTheDocument();
     await user.click(
       (await screen.findAllByRole('button', { name: 'Aprobar' }))[0]!,
     );
@@ -206,7 +224,7 @@ describe('registrations vertical slice', () => {
     });
 
     const cancelButtons = await screen.findAllByRole('button', {
-      name: `Cancelar inscripción ${registrationId}`,
+      name: 'Cancelar inscripción de Competidor activo',
     });
     await user.click(cancelButtons[0]!);
     expect(
@@ -236,9 +254,11 @@ describe('registrations vertical slice', () => {
       await screen.findByLabelText('Tipo de participante'),
       'team',
     );
-    await user.selectOptions(
-      await screen.findByLabelText('Participante'),
-      teamId,
+    await user.click(
+      screen.getByRole('combobox', { name: /Buscar equipo activo/ }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'Equipo activo' }),
     );
     await user.click(
       screen.getByRole('button', { name: 'Inscribir participante' }),
@@ -253,6 +273,57 @@ describe('registrations vertical slice', () => {
       return found;
     });
     expect(jsonRequestBody(post?.[1]?.body)).toEqual({ teamId });
+  });
+
+  it('opens all active participants on focus and filters while typing', async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, '', `/races/${raceId}/registrations`);
+    const fetchMock = mockApi({ role: 'RACE_ORGANIZER' });
+    renderApplication();
+
+    const search = await screen.findByRole('combobox', {
+      name: /Buscar competidor activo/,
+    });
+    await user.click(search);
+    expect(
+      await screen.findByRole('option', { name: 'Competidor activo' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText('Participante')).not.toBeInTheDocument();
+
+    await user.type(search, 'Rápido');
+    await waitFor(() => {
+      const filteredCall = fetchMock.mock.calls.find(([input]) => {
+        const url = new URL(requestUrl(input), 'http://localhost');
+        return (
+          url.pathname.endsWith('/competitors') &&
+          url.searchParams.get('search') === 'Rápido'
+        );
+      });
+      expect(filteredCall).toBeDefined();
+    });
+  });
+
+  it('keeps a mouse option press from blurring the combobox before selection', async () => {
+    const user = userEvent.setup();
+    window.history.replaceState(null, '', `/races/${raceId}/registrations`);
+    mockApi({ role: 'RACE_ORGANIZER' });
+    renderApplication();
+
+    const search = await screen.findByRole('combobox', {
+      name: /Buscar competidor activo/,
+    });
+    await user.click(search);
+    const option = await screen.findByRole('option', {
+      name: 'Competidor activo',
+    });
+
+    expect(fireEvent.mouseDown(option)).toBe(false);
+    fireEvent.click(option);
+
+    expect(search).toHaveValue('Competidor activo');
+    expect(
+      screen.getByRole('button', { name: 'Inscribir participante' }),
+    ).toBeEnabled();
   });
 });
 

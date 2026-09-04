@@ -156,7 +156,7 @@ export function TeamFormPage() {
         description={
           isEditing
             ? 'Actualiza todos los campos editables. El estado se administra desde la ficha.'
-            : 'Registra un equipo usando exactamente los campos aceptados por la API.'
+            : 'Completa la información para registrar un nuevo equipo.'
         }
         eyebrow="Administración"
         title={isEditing ? 'Editar equipo' : 'Nuevo equipo'}

@@ -37,6 +37,7 @@ const race: Race = {
 const registration: Registration = {
   competitorId,
   id: registrationId,
+  participantName: 'Martin',
   performedByUserProfileId: null,
   raceId,
   registeredAt: '2026-08-19T12:00:00.000Z',
@@ -52,6 +53,7 @@ const result: RaceResult = {
   id: resultId,
   notes: 'Resultado inicial',
   penaltyTimeMs: 1000,
+  participantName: 'Martin',
   raceId,
   rawTimeMs: 522_350,
   recordedAt: '2026-08-21T13:00:00.000Z',
@@ -86,6 +88,8 @@ describe('results vertical slice', () => {
       await screen.findByRole('heading', { name: 'Final del desierto' }),
     ).toBeInTheDocument();
     expect(screen.getAllByText('08:43.350').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Martin').length).toBeGreaterThan(0);
+    expect(screen.queryByText(registrationId)).not.toBeInTheDocument();
     expect(screen.queryByText('Registrar resultado')).not.toBeInTheDocument();
     expect(screen.queryByText('Corregir')).not.toBeInTheDocument();
   });
@@ -247,6 +251,8 @@ describe('results vertical slice', () => {
     expect(
       await screen.findByText('Corrección de resultado oficial'),
     ).toBeInTheDocument();
+    expect(screen.getByText(/Martin · salida 4/)).toBeInTheDocument();
+    expect(screen.queryByText(registrationId)).not.toBeInTheDocument();
     expect(screen.getByLabelText(/Tiempo bruto/)).toHaveValue('08:42.350');
     await user.click(
       screen.getByRole('button', { name: 'Revisar corrección' }),
@@ -274,7 +280,7 @@ describe('results vertical slice', () => {
     expect(body).not.toHaveProperty('finalTimeMs');
     expect(
       await screen.findByText(
-        'La corrección fue guardada y quedó registrada en la auditoría del backend.',
+        'La corrección fue guardada correctamente.',
       ),
     ).toBeInTheDocument();
   });

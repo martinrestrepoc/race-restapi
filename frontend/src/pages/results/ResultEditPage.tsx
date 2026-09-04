@@ -53,7 +53,7 @@ export function ResultEditPage() {
         replace: true,
         state: {
           message:
-            'La corrección fue guardada y quedó registrada en la auditoría del backend.',
+            'La corrección fue guardada correctamente.',
           title: 'Resultado corregido',
         },
       });
@@ -82,7 +82,7 @@ export function ResultEditPage() {
   if (!correctionAllowed)
     return (
       <DisabledState
-        description="El backend solo permite corregir resultados durante una carrera o después de completarla."
+        description="Los resultados solo pueden corregirse durante una carrera o después de completarla."
         title="Corrección no disponible"
       />
     );
@@ -99,7 +99,7 @@ export function ResultEditPage() {
             Cancelar
           </Link>
         }
-        description={`Inscripción ${result.registrationId} · salida ${result.startingPosition}`}
+        description={`${result.participantName} · salida ${result.startingPosition}`}
         eyebrow={
           race.status === 'COMPLETED'
             ? 'Corrección de resultado oficial'
@@ -108,7 +108,7 @@ export function ResultEditPage() {
         title={race.name}
       />
       <Panel
-        description="No se crea una segunda fila: el backend actualiza el resultado y registra el cambio en auditoría."
+        description="La corrección reemplazará los valores actuales y quedará registrada."
         title="Datos corregidos"
       >
         <ResultForm

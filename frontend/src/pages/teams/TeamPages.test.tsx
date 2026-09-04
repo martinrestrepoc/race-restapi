@@ -179,7 +179,7 @@ describe('teams and memberships vertical slice', () => {
     await user.click(screen.getByRole('button', { name: 'Agregar' }));
     expect(
       await screen.findByText(
-        'El equipo alcanzó el máximo de integrantes activos configurado en el backend.',
+        'El equipo alcanzó el máximo de integrantes activos.',
       ),
     ).toBeInTheDocument();
   });

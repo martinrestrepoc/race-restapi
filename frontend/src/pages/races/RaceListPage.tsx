@@ -115,7 +115,7 @@ export function RaceListPage() {
             </Link>
           ) : undefined
         }
-        description="Consulta el calendario con filtros y orden provistos por la API."
+        description="Consulta y administra el calendario de carreras."
         eyebrow="Calendario deportivo"
         title="Carreras"
       />

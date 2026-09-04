@@ -183,8 +183,7 @@ describe('ApiClient with MSW', () => {
     );
 
     await expect(createClient().get('races')).rejects.toMatchObject({
-      message:
-        'El servicio no pudo completar la solicitud. Intenta nuevamente.',
+      message: 'No fue posible completar la solicitud. Intenta nuevamente.',
       status: 500,
     });
   });

@@ -23,15 +23,10 @@ try {
       <RootApplication environment={environment} />
     </StrictMode>,
   );
-} catch (error: unknown) {
-  const message =
-    error instanceof Error
-      ? error.message
-      : 'La configuración pública del frontend no es válida.';
-
+} catch {
   root.render(
     <StrictMode>
-      <ConfigurationError message={message} />
+      <ConfigurationError />
     </StrictMode>,
   );
 }

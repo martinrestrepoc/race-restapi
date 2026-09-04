@@ -97,7 +97,7 @@ export function TeamDetailPage() {
         replace: true,
         state: {
           message:
-            'El backend eliminó el equipo o lo desactivó para conservar su historial, según correspondía.',
+            'El equipo fue eliminado o desactivado según su historial.',
           title: 'Operación completada',
         },
       });
@@ -224,7 +224,7 @@ export function TeamDetailPage() {
 
         {isAdministrator ? (
           <Panel
-            description="El backend vuelve a validar el cambio y conserva el historial."
+            description="El cambio debe respetar el estado actual del equipo."
             title="Administración"
           >
             <div className="space-y-5">
@@ -275,7 +275,7 @@ export function TeamDetailPage() {
 
       {isAdministrator ? (
         <Panel
-          description="La capacidad y la pertenencia activa se validan de forma transaccional en el backend."
+          description="Solo se pueden agregar competidores elegibles mientras haya cupo disponible."
           title="Agregar integrante"
         >
           {team.status === 'INACTIVE' ? (
@@ -324,7 +324,7 @@ export function TeamDetailPage() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                   <div className="flex-1">
                     <FormField
-                      hint="La API confirmará que no pertenezca a otro equipo activo."
+                      hint="El competidor no debe pertenecer a otro equipo activo."
                       htmlFor="team-member-candidate"
                       label="Competidor"
                     >
@@ -537,7 +537,7 @@ function confirmationDescription(action: PendingAction, teamName: string) {
   if (action?.kind === 'status')
     return `El estado de ${teamName} cambiará a ${teamStatusLabels[action.status]}.`;
   if (action?.kind === 'delete')
-    return `El backend decidirá si ${teamName} se elimina o se desactiva según su historial de membresías.`;
+    return `${teamName} se eliminará si no tiene historial; de lo contrario se desactivará.`;
   if (action?.kind === 'remove-member')
     return `Se registrará la fecha de salida de ${action.competitor.name}; la membresía permanecerá en el historial.`;
   return '';
@@ -548,7 +548,7 @@ function teamConflictMessage(error: Error): string {
     return error.message;
   const message = error.message.toLowerCase();
   if (message.includes('maximum'))
-    return 'El equipo alcanzó el máximo de integrantes activos configurado en el backend.';
+    return 'El equipo alcanzó el máximo de integrantes activos.';
   if (message.includes('inactive team'))
     return 'Un equipo inactivo no puede recibir integrantes. Actívalo e intenta nuevamente.';
   if (

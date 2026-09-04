@@ -9,7 +9,6 @@ interface AppShellProps {
   activeItem: NavigationKey;
   children: ReactNode;
   displayName: string;
-  environmentLabel: string;
   navigation: NavigationItem[];
   onNavigate: (item: NavigationKey) => void;
   onLogout: () => void;
@@ -20,7 +19,6 @@ export function AppShell({
   activeItem,
   children,
   displayName,
-  environmentLabel,
   navigation,
   onNavigate,
   onLogout,
@@ -37,7 +35,6 @@ export function AppShell({
         <div className="min-w-0 flex-1">
           <Topbar
             displayName={displayName}
-            environmentLabel={environmentLabel}
             onLogout={onLogout}
             roleLabel={roleLabel}
           />

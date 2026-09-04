@@ -70,7 +70,7 @@ export function CompetitorDetailPage() {
         replace: true,
         state: {
           message:
-            'El backend eliminó el registro o lo retiró para conservar su historial, según correspondía.',
+            'El competidor fue eliminado o retirado según su historial.',
           title: 'Operación completada',
         },
       });
@@ -158,7 +158,7 @@ export function CompetitorDetailPage() {
 
         {isAdministrator ? (
           <Panel
-            description="Las reglas del ciclo de vida se validan nuevamente en el backend."
+            description="El cambio debe respetar el estado actual del competidor."
             title="Administración"
           >
             <div className="space-y-5">
@@ -277,7 +277,7 @@ function confirmationDescription(action: PendingAction, name: string): string {
   if (action?.kind === 'status')
     return `El estado de ${name} cambiará a ${competitorStatusLabels[action.status]}.`;
   if (action?.kind === 'delete')
-    return `El backend decidirá si ${name} se elimina o se retira según su historial. Esta operación requiere confirmación.`;
+    return `${name} se eliminará si no tiene historial; de lo contrario se retirará. Esta operación requiere confirmación.`;
   return '';
 }
 

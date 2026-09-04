@@ -70,6 +70,9 @@ export class ResultsService {
     const where = query.status ? { raceId, status: query.status } : { raceId };
     const [items, totalItems] = await this.resultsRepository.findAndCount({
       where,
+      relations: {
+        registration: { competitor: true, team: true },
+      },
       order: { finalPosition: 'ASC', recordedAt: 'ASC', id: 'ASC' },
       skip: (query.page - 1) * query.limit,
       take: query.limit,
@@ -84,7 +87,12 @@ export class ResultsService {
   }
 
   async findOne(id: string): Promise<RaceResult> {
-    const result = await this.resultsRepository.findOneBy({ id });
+    const result = await this.resultsRepository.findOne({
+      where: { id },
+      relations: {
+        registration: { competitor: true, team: true },
+      },
+    });
     if (!result)
       throw new NotFoundException(`Result with ID ${id} was not found`);
     return result;
@@ -134,8 +142,9 @@ export class ResultsService {
               : 'Results can be recorded only while the race is in progress',
           );
         }
-        const registration = await registrations.findOneBy({
-          id: registrationId,
+        const registration = await registrations.findOne({
+          where: { id: registrationId },
+          relations: { competitor: true, team: true },
         });
         if (!registration || registration.raceId !== raceId) {
           throw new NotFoundException(

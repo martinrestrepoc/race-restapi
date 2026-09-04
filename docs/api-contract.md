@@ -193,7 +193,9 @@ reason. Allowed transitions are defined in ADR 0001.
 
 The implemented initial policy deliberately restricts registration list/detail
 reads to administrators and race organizers. Viewers receive `403`; public race
-and result reads do not expose registration administration.
+and result reads do not expose registration administration. Registration
+responses include `participantName` so clients can present the competitor or team
+without rendering its internal identifier.
 
 ### Results and Standings
 
@@ -209,7 +211,9 @@ and result reads do not expose registration administration.
 
 Administrators and race organizers may correct results after completion with audit
 and standings recalculation. Because standings query `RaceResult` directly, no
-separate materialized update is required.
+separate materialized update is required. Result responses include
+`participantName`; internal registration and participant identifiers are retained
+for API operations but must not be displayed as user-facing labels.
 
 All standings endpoints require a valid application role and an `ACTIVE` local
 profile. Their common query DTO accepts `page`, `limit`, `search`, `sortBy`, and

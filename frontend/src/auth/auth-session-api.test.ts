@@ -68,7 +68,7 @@ describe('loadAuthenticatedSession', () => {
 
     await expect(
       loadAuthenticatedSession(createClient(), '/api/v1', request),
-    ).rejects.toThrow('invalid response');
+    ).rejects.toThrow('No fue posible validar la sesión.');
   });
 
   it('preserves authentication API status without exposing its response body', async () => {

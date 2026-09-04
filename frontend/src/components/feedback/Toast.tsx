@@ -1,4 +1,5 @@
 import { CheckCircle2, Info, TriangleAlert, X } from 'lucide-react';
+import { useEffect, useRef } from 'react';
 
 import { Button } from '@/components/ui/Button';
 import { cx } from '@/lib/cx';
@@ -24,6 +25,8 @@ const icons = {
   danger: TriangleAlert,
 };
 
+const successToastDurationMs = 2_000;
+
 export function Toast({
   message,
   onDismiss,
@@ -31,6 +34,21 @@ export function Toast({
   tone = 'success',
 }: ToastProps) {
   const Icon = icons[tone];
+  const onDismissRef = useRef(onDismiss);
+
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
+
+  useEffect(() => {
+    if (tone !== 'success') return;
+
+    const timeoutId = window.setTimeout(
+      () => onDismissRef.current(),
+      successToastDurationMs,
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [message, title, tone]);
 
   return (
     <aside

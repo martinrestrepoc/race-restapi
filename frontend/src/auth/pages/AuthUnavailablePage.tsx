@@ -7,13 +7,13 @@ import { AuthFrame } from './AuthFrame';
 export function AuthUnavailablePage() {
   return (
     <AuthFrame
-      eyebrow="Servicio no disponible"
+      eyebrow="Acceso no disponible"
       title="No pudimos validar el acceso"
     >
       <TriangleAlert aria-hidden="true" className="size-9 text-destructive" />
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        Verifica que Keycloak y la API estén disponibles. No se mostrarán
-        detalles internos de autenticación.
+        No fue posible iniciar sesión en este momento. Intenta nuevamente más
+        tarde.
       </p>
       <Button
         className="mt-6 w-full"

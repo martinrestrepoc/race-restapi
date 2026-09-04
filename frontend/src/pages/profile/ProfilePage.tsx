@@ -1,4 +1,4 @@
-import { KeyRound, LogOut, ShieldCheck, UserRound } from 'lucide-react';
+import { LogOut, ShieldCheck, UserRound } from 'lucide-react';
 
 import { useAuth } from '@/auth/use-auth';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -21,7 +21,7 @@ export function ProfilePage() {
             Cerrar sesión
           </Button>
         }
-        description="Información efectiva de tu identidad autenticada y del perfil local asociado."
+        description="Consulta la información y los permisos de tu cuenta."
         eyebrow="Cuenta"
         title="Mi perfil"
       />
@@ -30,13 +30,12 @@ export function ProfilePage() {
           action={
             <ShieldCheck aria-hidden="true" className="size-5 text-primary" />
           }
-          description="Keycloak autentica, administra credenciales, sesiones y roles."
-          title="Identidad de Keycloak"
+          description="Información de la cuenta con la que iniciaste sesión."
+          title="Datos de acceso"
         >
           <dl className="space-y-5">
             <Datum label="Usuario" value={user.username ?? 'No disponible'} />
             <Datum label="Correo" value={user.email ?? 'No disponible'} />
-            <Datum label="Identificador estable (sub)" value={user.sub} mono />
             <div>
               <dt className="text-xs uppercase tracking-wide text-muted-foreground">
                 Roles efectivos
@@ -53,8 +52,8 @@ export function ProfilePage() {
         </Panel>
         <Panel
           action={<UserStatusBadge status={profile.status} />}
-          description="Este registro enlaza la identidad externa con las reglas locales de acceso."
-          title="Perfil local"
+          description="Información visible de tu cuenta."
+          title="Perfil"
         >
           <dl className="space-y-5">
             <Datum label="Nombre visible" value={profile.displayName} />
@@ -62,7 +61,6 @@ export function ProfilePage() {
               label="Correo almacenado"
               value={profile.emailSnapshot ?? 'No disponible'}
             />
-            <Datum label="ID local" value={profile.id} mono />
             <Datum label="Creado" value={formatDateTime(profile.createdAt)} />
             <Datum
               label="Actualizado"
@@ -72,12 +70,7 @@ export function ProfilePage() {
         </Panel>
       </div>
       <Panel
-        action={
-          <KeyRound
-            aria-hidden="true"
-            className="size-5 text-muted-foreground"
-          />
-        }
+        action={<ShieldCheck aria-hidden="true" className="size-5 text-primary" />}
         title="Seguridad de la cuenta"
       >
         <div className="flex items-start gap-3 rounded-md border border-border bg-background/45 p-4">
@@ -86,9 +79,8 @@ export function ProfilePage() {
             className="mt-0.5 size-5 shrink-0 text-primary"
           />
           <p className="text-sm leading-6 text-muted-foreground">
-            Esta aplicación no almacena ni modifica tu contraseña y tampoco
-            permite editar roles. Esas operaciones pertenecen exclusivamente a
-            Keycloak.
+            Para cambiar tu contraseña o solicitar permisos diferentes,
+            contacta a un administrador.
           </p>
         </div>
       </Panel>
@@ -98,11 +90,9 @@ export function ProfilePage() {
 
 function Datum({
   label,
-  mono = false,
   value,
 }: {
   label: string;
-  mono?: boolean;
   value: string;
 }) {
   return (
@@ -110,9 +100,7 @@ function Datum({
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className={`mt-1 break-all text-sm ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </dd>
+      <dd className="mt-1 break-all text-sm">{value}</dd>
     </div>
   );
 }

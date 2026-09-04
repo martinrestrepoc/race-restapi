@@ -140,7 +140,7 @@ export function DashboardPage() {
             ) : null}
           </>
         }
-        description="Estado operativo de la liga obtenido directamente del servicio REST. Cada bloque se actualiza y recupera de forma independiente."
+        description="Resumen de la actividad, las próximas carreras y la clasificación de la liga."
         eyebrow="Operación de la liga"
         title="Panel general"
       />
@@ -656,7 +656,7 @@ function errorMessage(error: Error): string {
   if (error instanceof ApiNetworkError) return error.message;
   if (error instanceof ApiError && error.status === 403)
     return 'No tienes permisos para consultar esta información.';
-  return 'El servicio no pudo entregar esta información. Intenta nuevamente.';
+  return 'No fue posible cargar esta información. Intenta nuevamente.';
 }
 
 function formatDateTime(value: string): string {

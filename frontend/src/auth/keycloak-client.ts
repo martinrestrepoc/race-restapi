@@ -39,7 +39,7 @@ export function getKeycloakClient(environment: PublicEnvironment): AuthClient {
 
   if (singletonClient && singletonConfiguration !== configuration) {
     throw new Error(
-      'La configuración de Keycloak cambió después de crear el cliente.',
+      'La configuración de acceso cambió. Recarga la página.',
     );
   }
 

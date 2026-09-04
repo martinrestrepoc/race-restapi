@@ -23,21 +23,15 @@ interface AppProps {
 export function App({
   activeNavigation,
   displayName,
-  environment,
   navigation,
   onLogout,
   onNavigate,
   roleLabel,
 }: AppProps) {
-  const environmentLabel = environment.apiBaseUrl.startsWith('/')
-    ? 'Entorno local'
-    : 'Entorno remoto';
-
   return (
     <AppShell
       activeItem={activeNavigation}
       displayName={displayName}
-      environmentLabel={environmentLabel}
       navigation={navigation}
       onLogout={onLogout}
       onNavigate={onNavigate}

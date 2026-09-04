@@ -157,7 +157,7 @@ describe('RootApplication authentication and routing boundaries', () => {
       await screen.findByRole('heading', { name: 'Iniciar sesión' }),
     ).toBeInTheDocument();
     await user.click(
-      screen.getByRole('button', { name: 'Continuar con Keycloak' }),
+      screen.getByRole('button', { name: 'Iniciar sesión' }),
     );
     expect(client.login).toHaveBeenCalledWith({
       redirectUri: 'http://localhost:3000/',
@@ -175,7 +175,7 @@ describe('RootApplication authentication and routing boundaries', () => {
     render(<RootApplication authClient={client} environment={environment} />);
 
     await user.click(
-      await screen.findByRole('button', { name: 'Continuar con Keycloak' }),
+      await screen.findByRole('button', { name: 'Iniciar sesión' }),
     );
     expect(client.login).toHaveBeenCalledWith({
       redirectUri: 'http://localhost:3000/',

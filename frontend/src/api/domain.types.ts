@@ -150,6 +150,7 @@ export interface RaceQuery extends PaginationQuery {
 export interface Registration {
   competitorId: string | null;
   id: string;
+  participantName: string;
   performedByUserProfileId: string | null;
   raceId: string;
   registeredAt: string;
@@ -175,6 +176,7 @@ export interface RaceResult {
   id: string;
   notes: string | null;
   penaltyTimeMs: number;
+  participantName: string;
   raceId: string;
   rawTimeMs: number | null;
   recordedAt: string;

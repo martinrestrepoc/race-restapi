@@ -115,7 +115,7 @@ export function StandingsPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        description="Posiciones, puntos y estadísticas calculados exclusivamente por el backend a partir de resultados oficiales."
+        description="Consulta las posiciones, los puntos y las estadísticas de los resultados oficiales."
         eyebrow="Tabla oficial"
         title="Clasificación"
       />

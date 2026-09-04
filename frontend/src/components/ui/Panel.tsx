@@ -1,15 +1,29 @@
 import type { ReactNode } from 'react';
 
+import { cx } from '@/lib/cx';
+
 interface PanelProps {
   action?: ReactNode;
+  allowOverflow?: boolean;
   children: ReactNode;
   description?: string;
   title: string;
 }
 
-export function Panel({ action, children, description, title }: PanelProps) {
+export function Panel({
+  action,
+  allowOverflow = false,
+  children,
+  description,
+  title,
+}: PanelProps) {
   return (
-    <section className="overflow-hidden rounded-xl border border-border bg-card">
+    <section
+      className={cx(
+        'rounded-xl border border-border bg-card',
+        allowOverflow ? 'overflow-visible' : 'overflow-hidden',
+      )}
+    >
       <header className="flex items-start justify-between gap-4 border-b border-border px-4 py-3 sm:px-5">
         <div>
           <h2 className="font-display text-sm font-semibold uppercase tracking-wide">

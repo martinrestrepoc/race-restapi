@@ -48,7 +48,7 @@ export function UserDetailPage() {
     },
     onSuccess: async (profile) => {
       setPendingStatus(null);
-      setSuccessMessage('El estado local del perfil fue actualizado.');
+      setSuccessMessage('El estado del usuario fue actualizado.');
       queryClient.setQueryData(queryKeys.users.detail(id), profile);
       await invalidateResources(queryClient, mutationInvalidation.user);
     },
@@ -97,16 +97,14 @@ export function UserDetailPage() {
           </Link>
         }
         description={profile.emailSnapshot ?? 'Sin correo disponible'}
-        eyebrow="Perfil local"
+        eyebrow="Usuario"
         title={profile.displayName}
       />
       <Panel
         action={<UserStatusBadge status={profile.status} />}
-        title="Identidad vinculada"
+        title="Información del usuario"
       >
         <dl className="grid gap-6 sm:grid-cols-2">
-          <Datum label="ID local" value={profile.id} mono />
-          <Datum label="ID de Keycloak" value={profile.keycloakUserId} mono />
           <Datum label="Creación" value={formatDateTime(profile.createdAt)} />
           <Datum
             label="Actualización"
@@ -115,7 +113,7 @@ export function UserDetailPage() {
         </dl>
       </Panel>
       <Panel
-        description="Este control afecta el acceso local. Los roles, sesiones y credenciales continúan administrándose en Keycloak."
+        description="Habilita o restringe el acceso de este usuario a la aplicación."
         title="Estado de acceso"
       >
         <Button
@@ -138,7 +136,7 @@ export function UserDetailPage() {
         confirmLabel={
           targetStatus === 'DISABLED' ? 'Deshabilitar' : 'Reactivar'
         }
-        description={`El perfil cambiará al estado ${userProfileStatusLabels[targetStatus]}. Esta operación quedará auditada.`}
+        description={`El usuario cambiará al estado ${userProfileStatusLabels[targetStatus]}.`}
         isOpen={pendingStatus !== null}
         onCancel={() => setPendingStatus(null)}
         onConfirm={() => {
@@ -147,7 +145,7 @@ export function UserDetailPage() {
           setPendingStatus(null);
           mutation.mutate(status);
         }}
-        title="¿Cambiar el estado local?"
+        title="¿Cambiar el estado del usuario?"
       />
     </div>
   );
@@ -155,11 +153,9 @@ export function UserDetailPage() {
 
 function Datum({
   label,
-  mono = false,
   value,
 }: {
   label: string;
-  mono?: boolean;
   value: string;
 }) {
   return (
@@ -167,9 +163,7 @@ function Datum({
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className={`mt-1 break-all text-sm ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </dd>
+      <dd className="mt-1 break-all text-sm">{value}</dd>
     </div>
   );
 }

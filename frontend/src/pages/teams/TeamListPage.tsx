@@ -111,7 +111,7 @@ export function TeamListPage() {
             </Link>
           ) : undefined
         }
-        description="Consulta los equipos con los filtros, el orden y la paginación disponibles en la API."
+        description="Consulta y administra los equipos de la liga."
         eyebrow="Organización deportiva"
         title="Equipos"
       />

@@ -9,12 +9,11 @@ export function AccountDisabledPage() {
   const { logout, profile } = useAuth();
 
   return (
-    <AuthFrame eyebrow="Perfil local" title="Acceso deshabilitado">
+    <AuthFrame eyebrow="Cuenta" title="Acceso deshabilitado">
       <Ban aria-hidden="true" className="size-9 text-warning" />
       <p className="mt-4 text-sm leading-6 text-muted-foreground">
-        {profile?.displayName ? `${profile.displayName}, tu` : 'Tu'} identidad
-        de Keycloak es válida, pero el perfil local no puede realizar
-        operaciones del dominio. Contacta a un administrador.
+        {profile?.displayName ? `${profile.displayName}, tu` : 'Tu'} cuenta está
+        deshabilitada. Contacta a un administrador para recuperar el acceso.
       </p>
       <Button
         className="mt-6 w-full"

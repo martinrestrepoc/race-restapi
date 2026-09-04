@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
   DisabledState,
@@ -10,6 +10,8 @@ import {
 } from './FeedbackState';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Toast } from './Toast';
+
+afterEach(() => vi.useRealTimers());
 
 describe('shared feedback components', () => {
   it('exposes loading, empty and disabled states semantically', () => {
@@ -60,6 +62,40 @@ describe('shared feedback components', () => {
       <Toast message="Cambios guardados." onDismiss={vi.fn()} title="Listo" />,
     );
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');
+  });
+
+  it('dismisses success notifications automatically after a short delay', () => {
+    vi.useFakeTimers();
+    const onDismiss = vi.fn();
+    render(
+      <Toast
+        message="Cambios guardados."
+        onDismiss={onDismiss}
+        title="Listo"
+      />,
+    );
+
+    void act(() => vi.advanceTimersByTime(1_999));
+    expect(onDismiss).not.toHaveBeenCalled();
+
+    void act(() => vi.advanceTimersByTime(1));
+    expect(onDismiss).toHaveBeenCalledOnce();
+  });
+
+  it('keeps error notifications visible until they are dismissed', () => {
+    vi.useFakeTimers();
+    const onDismiss = vi.fn();
+    render(
+      <Toast
+        message="No fue posible guardar."
+        onDismiss={onDismiss}
+        title="Error"
+        tone="danger"
+      />,
+    );
+
+    void act(() => vi.advanceTimersByTime(10_000));
+    expect(onDismiss).not.toHaveBeenCalled();
   });
 
   it('locks every dialog action while a destructive request is pending', () => {

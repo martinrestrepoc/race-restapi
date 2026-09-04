@@ -21,7 +21,7 @@ const actorUserProfileId = 'd9385ef6-f41a-420a-a773-8bd18fbfbf10';
 
 describe('ResultsService', () => {
   const resultsRepository = {
-    findOneBy: jest.fn(),
+    findOne: jest.fn(),
     existsBy: jest.fn(),
     findAndCount: jest.fn(),
   };
@@ -65,7 +65,7 @@ describe('ResultsService', () => {
         if (entity === Race)
           return { findOne: jest.fn().mockResolvedValue(race) };
         if (entity === RaceRegistration) {
-          return { findOneBy: jest.fn().mockResolvedValue(registration) };
+          return { findOne: jest.fn().mockResolvedValue(registration) };
         }
         return transactionalResults;
       }),
@@ -119,7 +119,7 @@ describe('ResultsService', () => {
       finalTimeMs: 80000,
       notes: null,
     } as RaceResult;
-    resultsRepository.findOneBy.mockResolvedValue(existingResult);
+    resultsRepository.findOne.mockResolvedValue(existingResult);
     configureTransaction(
       { id: raceId, status: RaceStatus.COMPLETED } as Race,
       {

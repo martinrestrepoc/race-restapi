@@ -6,6 +6,7 @@ export class RegistrationResponseDto {
   raceId: string;
   competitorId: string | null;
   teamId: string | null;
+  participantName: string;
   status: RegistrationStatus;
   startingPosition: number | null;
   validationNotes: string | null;
@@ -19,6 +20,10 @@ export class RegistrationResponseDto {
       raceId: registration.raceId,
       competitorId: registration.competitorId,
       teamId: registration.teamId,
+      participantName:
+        registration.competitor?.name ??
+        registration.team?.name ??
+        'Participante',
       status: registration.status,
       startingPosition: registration.startingPosition,
       validationNotes: registration.validationNotes,

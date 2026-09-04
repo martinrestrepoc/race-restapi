@@ -121,17 +121,21 @@ describe('phase 11 pages', () => {
     });
   });
 
-  it('converts audit date filters to ISO and sends all exact filters', async () => {
+  it('converts the visible audit filters to the expected query', async () => {
     const user = userEvent.setup();
     window.history.replaceState(null, '', '/audit');
     const fetchMock = mockApi('ADMINISTRATOR');
     renderApplication(createClient());
 
     await screen.findByRole('heading', { name: 'Auditoría' });
-    await user.type(screen.getByLabelText('Acción'), 'result_corrected');
-    await user.type(screen.getByLabelText('Tipo de entidad'), 'race_result');
-    await user.type(screen.getByLabelText('ID del actor'), currentProfileId);
-    await user.type(screen.getByLabelText('ID de la entidad'), competitorId);
+    await user.selectOptions(
+      screen.getByLabelText('Acción'),
+      'RESULT_CORRECTED',
+    );
+    await user.selectOptions(
+      screen.getByLabelText('Elemento'),
+      'RACE_RESULT',
+    );
     fireEvent.change(screen.getByLabelText('Desde'), {
       target: { value: '2026-08-24T08:00' },
     });
@@ -153,8 +157,6 @@ describe('phase 11 pages', () => {
     const url = new URL(requestUrl(call![0]), 'http://localhost');
     expect(Object.fromEntries(url.searchParams)).toMatchObject({
       action: 'RESULT_CORRECTED',
-      actorUserProfileId: currentProfileId,
-      entityId: competitorId,
       entityType: 'RACE_RESULT',
       from: localDateTimeToIso('2026-08-24T08:00'),
       to: localDateTimeToIso('2026-08-24T18:00'),
@@ -172,12 +174,13 @@ describe('phase 11 pages', () => {
       await screen.findByText(/<img src=x onerror=alert\(1\)>/),
     ).toBeInTheDocument();
     expect(container.querySelector('img')).toBeNull();
+    expect(screen.queryByText(competitorId)).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /Editar|Eliminar/ }),
     ).not.toBeInTheDocument();
   });
 
-  it('combines Keycloak identity, local profile, roles and logout', async () => {
+  it('shows account information without exposing internal identifiers', async () => {
     const user = userEvent.setup();
     window.history.replaceState(null, '', '/profile');
     const client = createClient();
@@ -190,7 +193,8 @@ describe('phase 11 pages', () => {
     expect(
       screen.getAllByText('Organizador de carreras').length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText('user-sub')).toBeInTheDocument();
+    expect(screen.queryByText('user-sub')).not.toBeInTheDocument();
+    expect(screen.queryByText(currentProfileId)).not.toBeInTheDocument();
     const logoutButtons = screen.getAllByRole('button', {
       name: 'Cerrar sesión',
     });
@@ -320,7 +324,10 @@ function auditEntry() {
     entityId: competitorId,
     entityType: 'RACE_RESULT',
     id: auditId,
-    newValues: { html: '<img src=x onerror=alert(1)>' },
+    newValues: {
+      competitorId,
+      html: '<img src=x onerror=alert(1)>',
+    },
     occurredAt: '2026-08-25T12:00:00.000Z',
     previousValues: { status: 'FINISHED' },
   };

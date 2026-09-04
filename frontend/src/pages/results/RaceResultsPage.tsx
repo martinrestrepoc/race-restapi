@@ -178,7 +178,7 @@ export function RaceResultsPage() {
             Volver a la carrera
           </Link>
         }
-        description="Tiempos expresados como MM:SS.mmm. El tiempo final es el valor oficial calculado por el backend."
+        description="Tiempos expresados como MM:SS.mmm. El tiempo final incluye las penalizaciones aplicables."
         eyebrow="Resultados de carrera"
         title={race.name}
       />
@@ -208,7 +208,7 @@ export function RaceResultsPage() {
             <div className="space-y-5">
               {availableRegistrations.length === 0 ? (
                 <EmptyState
-                  description="Esta página no contiene inscripciones aprobadas con posición de salida sin resultado. Puedes revisar otra página o resolver los conflictos indicados por el backend."
+                  description="Esta página no contiene participantes aprobados con posición de salida y sin resultado. Puedes revisar otra página."
                   title="Sin participantes disponibles"
                 />
               ) : (
@@ -285,7 +285,7 @@ export function RaceResultsPage() {
             {resultsQuery.data?.totalItems ?? 0} registros
           </span>
         }
-        description="Los resultados se ordenan por posición final y fecha de registro según la API."
+        description="Resultados oficiales registrados para esta carrera."
         title="Resultados registrados"
       >
         {resultsQuery.isPending ? (
@@ -328,11 +328,9 @@ function resultColumns(canManage: boolean) {
       key: 'registration',
       render: (result: RaceResult) => (
         <div>
-          <span className="font-semibold">
+          <span className="font-semibold">{result.participantName}</span>
+          <p className="mt-0.5 text-xs text-muted-foreground">
             Salida {result.startingPosition}
-          </span>
-          <p className="mt-0.5 max-w-52 break-all font-mono text-[11px] text-muted-foreground">
-            {result.registrationId}
           </p>
         </div>
       ),

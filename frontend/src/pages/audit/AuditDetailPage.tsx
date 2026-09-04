@@ -8,6 +8,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { Panel } from '@/components/ui/Panel';
 import { queryKeys } from '@/query/query-keys';
 import { formatDateTime } from '@/pages/races/race-view';
+import { auditLabel } from './audit-view';
 
 export function AuditDetailPage() {
   const { id = '' } = useParams();
@@ -39,21 +40,18 @@ export function AuditDetailPage() {
             Volver
           </Link>
         }
-        description={entry.description ?? 'Sin descripción'}
-        eyebrow="Evento inmutable"
-        title={entry.action}
+        description={`Cambio registrado el ${formatDateTime(entry.occurredAt)}.`}
+        eyebrow="Historial"
+        title={auditLabel(entry.action)}
       />
-      <Panel title="Metadatos">
+      <Panel title="Información del cambio">
         <dl className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           <Datum label="Ocurrencia" value={formatDateTime(entry.occurredAt)} />
-          <Datum label="Tipo de entidad" value={entry.entityType} />
-          <Datum label="ID de entidad" value={entry.entityId} mono />
+          <Datum label="Elemento" value={auditLabel(entry.entityType)} />
           <Datum
-            label="ID del actor"
-            value={entry.actorUserProfileId ?? '—'}
-            mono
+            label="Realizado por"
+            value={entry.actorUserProfileId ? 'Usuario' : 'Sistema'}
           />
-          <Datum label="ID del evento" value={entry.id} mono />
         </dl>
       </Panel>
       <div className="grid gap-6 xl:grid-cols-2">
@@ -74,19 +72,16 @@ function JsonSnapshot({
   return (
     <Panel title={label}>
       <pre className="max-h-[32rem] overflow-auto whitespace-pre-wrap break-words rounded-md border border-border bg-background p-4 font-mono text-xs leading-6 text-muted-foreground">
-        {value ? JSON.stringify(value, null, 2) : 'Sin valores'}
+        {value
+          ? JSON.stringify(removeInternalIdentifiers(value), null, 2)
+          : 'Sin valores'}
       </pre>
     </Panel>
   );
 }
 
-function Datum({
-  label,
-  mono = false,
-  value,
-}: {
+function Datum({ label, value }: {
   label: string;
-  mono?: boolean;
   value: string;
 }) {
   return (
@@ -94,9 +89,18 @@ function Datum({
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">
         {label}
       </dt>
-      <dd className={`mt-1 break-all text-sm ${mono ? 'font-mono' : ''}`}>
-        {value}
-      </dd>
+      <dd className="mt-1 break-all text-sm">{value}</dd>
     </div>
+  );
+}
+
+function removeInternalIdentifiers(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(removeInternalIdentifiers);
+  if (typeof value !== 'object' || value === null) return value;
+
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => !/(^id$|ids$|id$)/i.test(key))
+      .map(([key, item]) => [key, removeInternalIdentifiers(item)]),
   );
 }

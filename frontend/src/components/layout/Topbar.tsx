@@ -5,14 +5,12 @@ import { Button } from '@/components/ui/Button';
 
 interface TopbarProps {
   displayName: string;
-  environmentLabel: string;
   onLogout: () => void;
   roleLabel: string;
 }
 
 export function Topbar({
   displayName,
-  environmentLabel,
   onLogout,
   roleLabel,
 }: TopbarProps) {
@@ -34,12 +32,9 @@ export function Topbar({
           </span>
         </span>
 
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center md:flex">
           <span className="font-display text-sm font-bold uppercase tracking-widest">
             EIA Racing League
-          </span>
-          <span className="rounded bg-primary/15 px-2 py-1 font-mono text-[10px] uppercase text-primary">
-            {environmentLabel}
           </span>
         </div>
 

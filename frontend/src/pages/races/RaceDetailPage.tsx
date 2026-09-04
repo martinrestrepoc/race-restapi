@@ -78,7 +78,7 @@ export function RaceDetailPage() {
         replace: true,
         state: {
           message:
-            'El backend eliminó el borrador o canceló la carrera para conservar su historial, según correspondía.',
+            'La carrera fue eliminada o cancelada según su estado e historial.',
           title: 'Operación completada',
         },
       });
@@ -194,7 +194,7 @@ export function RaceDetailPage() {
           </Panel>
           {canManage ? (
             <Panel
-              description="Las reglas de participantes y resultados se validan en el backend."
+              description="La carrera debe cumplir las condiciones requeridas para cambiar de estado."
               title="Ciclo de vida"
             >
               {isTerminal ? (
@@ -230,7 +230,7 @@ export function RaceDetailPage() {
                   </FormField>
                   {selectedStatus === 'CANCELLED' ? (
                     <FormField
-                      hint="El endpoint lo acepta; la implementación actual no lo devuelve ni lo muestra después."
+                      hint="Puedes indicar por qué se cancela la carrera."
                       htmlFor="race-transition-reason"
                       label="Motivo opcional"
                     >
@@ -332,7 +332,7 @@ function Datum({ label, value }: { label: string; value: string }) {
 
 function confirmationDescription(action: PendingAction, name: string) {
   if (action?.kind === 'remove')
-    return `El backend decidirá si ${name} se elimina o se cancela según su estado e historial de inscripciones.`;
+    return `${name} se eliminará si es posible; de lo contrario se cancelará según su estado e historial.`;
   if (action?.kind === 'status')
     return `${name} cambiará a ${raceStatusLabels[action.status]}.${action.reason ? ` Motivo enviado: ${action.reason}` : ''}`;
   return '';

@@ -35,7 +35,7 @@ export class ApiError extends Error {
 export class ApiNetworkError extends Error {
   constructor() {
     super(
-      'No fue posible conectar con el servicio. Revisa tu conexión e intenta nuevamente.',
+      'No fue posible completar la operación. Revisa tu conexión e intenta nuevamente.',
     );
     this.name = 'ApiNetworkError';
   }
@@ -44,7 +44,7 @@ export class ApiNetworkError extends Error {
 export class ApiResponseError extends Error {
   constructor() {
     super(
-      'El servicio devolvió una respuesta que la aplicación no puede interpretar.',
+      'No fue posible procesar la información recibida. Intenta nuevamente.',
     );
     this.name = 'ApiResponseError';
   }
@@ -52,7 +52,7 @@ export class ApiResponseError extends Error {
 
 function safeMessage(envelope: ApiErrorEnvelope): string {
   if (envelope.statusCode >= 500) {
-    return 'El servicio no pudo completar la solicitud. Intenta nuevamente.';
+    return 'No fue posible completar la solicitud. Intenta nuevamente.';
   }
 
   return envelope.message;

@@ -24,7 +24,7 @@ const userProfileSchema = z.object({
 
 export class AuthApiError extends Error {
   constructor(readonly status: number) {
-    super('The authentication API rejected the session request.');
+    super('No fue posible validar la sesión.');
     this.name = 'AuthApiError';
   }
 }
@@ -77,7 +77,7 @@ async function requestAndParse<Output>(
   const body: unknown = await response.json();
   const parsed = schema.safeParse(body);
   if (!parsed.success) {
-    throw new Error('The authentication API returned an invalid response.');
+    throw new Error('No fue posible validar la sesión.');
   }
 
   return parsed.data;

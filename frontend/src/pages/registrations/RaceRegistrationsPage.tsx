@@ -1,6 +1,7 @@
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   Search,
   SlidersHorizontal,
   Trash2,
@@ -8,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, KeyboardEvent } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import type {
@@ -69,6 +70,7 @@ export function RaceRegistrationsPage() {
   const [candidateSearch, setCandidateSearch] = useState('');
   const [submittedSearch, setSubmittedSearch] = useState('');
   const [participantId, setParticipantId] = useState('');
+  const [candidatesOpen, setCandidatesOpen] = useState(false);
   const [decision, setDecision] = useState<Decision>(null);
   const [startingPosition, setStartingPosition] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
@@ -94,6 +96,14 @@ export function RaceRegistrationsPage() {
     if (!race || race.type === 'MIXED') return;
     setParticipantKind(race.type === 'TEAM' ? 'team' : 'competitor');
   }, [race]);
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setSubmittedSearch(candidateSearch.trim().slice(0, 100));
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [candidateSearch]);
 
   const competitorCandidates = useQuery({
     enabled: Boolean(race) && effectiveKind === 'competitor',
@@ -153,10 +163,10 @@ export function RaceRegistrationsPage() {
       teamCandidates.data?.items,
     ],
   );
-  const candidatesPending =
+  const candidatesLoading =
     effectiveKind === 'competitor'
-      ? competitorCandidates.isPending
-      : teamCandidates.isPending;
+      ? competitorCandidates.isFetching
+      : teamCandidates.isFetching;
   const candidatesError =
     effectiveKind === 'competitor'
       ? competitorCandidates.isError
@@ -172,6 +182,9 @@ export function RaceRegistrationsPage() {
     onError: (error: Error) => setErrorMessage(registrationErrorMessage(error)),
     onSuccess: async () => {
       setParticipantId('');
+      setCandidateSearch('');
+      setSubmittedSearch('');
+      setCandidatesOpen(false);
       setSuccessMessage('La solicitud de inscripción quedó pendiente.');
       await invalidateRegistrationData();
     },
@@ -216,12 +229,6 @@ export function RaceRegistrationsPage() {
     if (next.limit && next.limit !== 20)
       params.set('limit', String(next.limit));
     setSearchParams(params);
-  }
-
-  function submitCandidateSearch(event: FormEvent) {
-    event.preventDefault();
-    setParticipantId('');
-    setSubmittedSearch(candidateSearch.trim().slice(0, 100));
   }
 
   function submitRegistration(event: FormEvent) {
@@ -296,7 +303,8 @@ export function RaceRegistrationsPage() {
       />
 
       <Panel
-        description="La elegibilidad, los duplicados, la composición del equipo, el plazo y la capacidad se validan definitivamente en el backend."
+        allowOverflow
+        description="Solo pueden inscribirse participantes elegibles mientras haya cupo y el plazo esté abierto."
         title="Nueva inscripción"
       >
         {!registrationOpen ? (
@@ -320,6 +328,7 @@ export function RaceRegistrationsPage() {
                     setParticipantId('');
                     setCandidateSearch('');
                     setSubmittedSearch('');
+                    setCandidatesOpen(false);
                   }}
                   value={effectiveKind}
                 >
@@ -335,60 +344,35 @@ export function RaceRegistrationsPage() {
             )}
 
             <form
-              className="flex flex-col gap-3 sm:flex-row sm:items-end"
-              onSubmit={submitCandidateSearch}
-            >
-              <div className="flex-1">
-                <FormField
-                  htmlFor="candidate-search"
-                  label={`Buscar ${effectiveKind === 'competitor' ? 'competidor' : 'equipo'} activo`}
-                >
-                  <input
-                    className={fieldControlClassName}
-                    id="candidate-search"
-                    maxLength={100}
-                    onChange={(event) => setCandidateSearch(event.target.value)}
-                    placeholder="Nombre"
-                    value={candidateSearch}
-                  />
-                </FormField>
-              </div>
-              <Button type="submit" variant="secondary">
-                <Search aria-hidden="true" className="size-4" />
-                Buscar
-              </Button>
-            </form>
-
-            <form
               className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end"
               onSubmit={submitRegistration}
             >
-              <FormField htmlFor="participant-id" label="Participante">
-                <select
-                  className={fieldControlClassName}
-                  disabled={
-                    candidatesPending || candidatesError || mutationPending
-                  }
-                  id="participant-id"
-                  onChange={(event) => setParticipantId(event.target.value)}
-                  required
-                  value={participantId}
-                >
-                  <option value="">
-                    {candidatesPending
-                      ? 'Cargando participantes…'
-                      : candidatesError
-                        ? 'No fue posible cargar participantes'
-                        : candidates.length === 0
-                          ? 'No hay participantes activos disponibles'
-                          : 'Seleccionar participante'}
-                  </option>
-                  {candidates.map((candidate) => (
-                    <option key={candidate.id} value={candidate.id}>
-                      {candidate.name}
-                    </option>
-                  ))}
-                </select>
+              <FormField
+                htmlFor="candidate-search"
+                label={`Buscar ${effectiveKind === 'competitor' ? 'competidor' : 'equipo'} activo`}
+                required
+              >
+                <ParticipantCombobox
+                  candidates={candidates}
+                  disabled={mutationPending}
+                  error={candidatesError}
+                  id="candidate-search"
+                  loading={candidatesLoading}
+                  onOpenChange={setCandidatesOpen}
+                  onSearchChange={(value) => {
+                    setCandidateSearch(value);
+                    setParticipantId('');
+                  }}
+                  onSelect={(candidate) => {
+                    setCandidateSearch(candidate.name);
+                    setParticipantId(candidate.id);
+                    setCandidatesOpen(false);
+                  }}
+                  open={candidatesOpen}
+                  participantId={participantId}
+                  placeholder={`Buscar y seleccionar ${effectiveKind === 'competitor' ? 'competidor' : 'equipo'}`}
+                  search={candidateSearch}
+                />
               </FormField>
               <Button
                 disabled={!participantId || mutationPending}
@@ -473,7 +457,7 @@ export function RaceRegistrationsPage() {
             {registrationsQuery.data?.totalItems ?? 0} registros
           </span>
         }
-        description="La API de inscripciones devuelve identificadores del participante; cada uno enlaza con su ficha correspondiente."
+        description="Cada participante se muestra por su nombre y enlaza con su ficha correspondiente."
         title="Solicitudes registradas"
       >
         {registrationsQuery.isPending ? (
@@ -524,6 +508,179 @@ export function RaceRegistrationsPage() {
   );
 }
 
+interface ParticipantCandidate {
+  id: string;
+  name: string;
+}
+
+function ParticipantCombobox({
+  candidates,
+  disabled,
+  error,
+  id,
+  loading,
+  onOpenChange,
+  onSearchChange,
+  onSelect,
+  open,
+  participantId,
+  placeholder,
+  search,
+}: {
+  candidates: ParticipantCandidate[];
+  disabled: boolean;
+  error: boolean;
+  id: string;
+  loading: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSearchChange: (value: string) => void;
+  onSelect: (candidate: ParticipantCandidate) => void;
+  open: boolean;
+  participantId: string;
+  placeholder: string;
+  search: string;
+}) {
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const listboxId = `${id}-options`;
+
+  useEffect(() => {
+    setActiveIndex(candidates.length > 0 ? 0 : -1);
+  }, [candidates]);
+
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      onOpenChange(true);
+      setActiveIndex((current) =>
+        candidates.length === 0
+          ? -1
+          : Math.min(current + 1, candidates.length - 1),
+      );
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      onOpenChange(true);
+      setActiveIndex((current) =>
+        candidates.length === 0 ? -1 : Math.max(current - 1, 0),
+      );
+    } else if (event.key === 'Enter' && open && activeIndex >= 0) {
+      event.preventDefault();
+      const candidate = candidates[activeIndex];
+      if (candidate) onSelect(candidate);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      onOpenChange(false);
+    }
+  }
+
+  return (
+    <div
+      className="relative"
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          onOpenChange(false);
+        }
+      }}
+    >
+      <Search
+        aria-hidden="true"
+        className="pointer-events-none absolute left-3 top-3 size-4 text-muted-foreground"
+      />
+      <input
+        aria-activedescendant={
+          open && activeIndex >= 0
+            ? `${listboxId}-${candidates[activeIndex]?.id}`
+            : undefined
+        }
+        aria-autocomplete="list"
+        aria-controls={listboxId}
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-invalid={error}
+        aria-required="true"
+        autoComplete="off"
+        className={`${fieldControlClassName} pl-9 pr-10`}
+        disabled={disabled}
+        id={id}
+        maxLength={100}
+        onChange={(event) => {
+          onSearchChange(event.target.value);
+          onOpenChange(true);
+        }}
+        onClick={() => onOpenChange(true)}
+        onFocus={() => onOpenChange(true)}
+        onKeyDown={handleKeyDown}
+        placeholder={placeholder}
+        role="combobox"
+        value={search}
+      />
+      <button
+        aria-label={open ? 'Cerrar opciones' : 'Mostrar participantes'}
+        className="absolute right-0 top-0 flex size-10 items-center justify-center text-muted-foreground hover:text-foreground disabled:cursor-not-allowed"
+        disabled={disabled}
+        onClick={() => onOpenChange(!open)}
+        tabIndex={-1}
+        type="button"
+      >
+        <ChevronDown
+          aria-hidden="true"
+          className={`size-4 transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+
+      {open ? (
+        <div
+          className="absolute z-30 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-border bg-card p-1 shadow-2xl shadow-black/40"
+          id={listboxId}
+          role="listbox"
+        >
+          {loading ? (
+            <p
+              className="px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+            >
+              Buscando participantes…
+            </p>
+          ) : error ? (
+            <p className="px-3 py-2 text-sm text-destructive" role="status">
+              No fue posible cargar los participantes.
+            </p>
+          ) : candidates.length === 0 ? (
+            <p
+              className="px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+            >
+              No hay coincidencias entre los participantes activos.
+            </p>
+          ) : (
+            candidates.map((candidate, index) => (
+              <button
+                aria-selected={participantId === candidate.id}
+                className={`flex w-full items-center justify-between rounded px-3 py-2 text-left text-sm transition-colors ${
+                  index === activeIndex
+                    ? 'bg-secondary text-foreground'
+                    : 'text-foreground hover:bg-secondary/75'
+                }`}
+                id={`${listboxId}-${candidate.id}`}
+                key={candidate.id}
+                onClick={() => onSelect(candidate)}
+                onMouseDown={(event) => event.preventDefault()}
+                onMouseEnter={() => setActiveIndex(index)}
+                role="option"
+                type="button"
+              >
+                <span>{candidate.name}</span>
+                {participantId === candidate.id ? (
+                  <Check aria-hidden="true" className="size-4 text-primary" />
+                ) : null}
+              </button>
+            ))
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function DecisionPanel({
   decision,
   disabled,
@@ -551,7 +708,7 @@ function DecisionPanel({
   const reasonValid = rejectionReason.trim().length > 0;
   return (
     <Panel
-      description={`Inscripción ${decision.registration.id}`}
+      description={`Participante: ${decision.registration.participantName}`}
       title={approving ? 'Aprobar inscripción' : 'Rechazar inscripción'}
     >
       <div className="space-y-4">
@@ -631,19 +788,14 @@ function registrationColumns({
         const isCompetitor = Boolean(registration.competitorId);
         const participantId = registration.competitorId ?? registration.teamId;
         return participantId ? (
-          <div>
-            <Link
-              className="font-semibold text-foreground hover:text-primary"
-              to={`/${isCompetitor ? 'competitors' : 'teams'}/${participantId}`}
-            >
-              {isCompetitor ? 'Competidor' : 'Equipo'}
-            </Link>
-            <p className="mt-0.5 max-w-52 break-all font-mono text-[11px] text-muted-foreground">
-              {participantId}
-            </p>
-          </div>
+          <Link
+            className="font-semibold text-foreground hover:text-primary"
+            to={`/${isCompetitor ? 'competitors' : 'teams'}/${participantId}`}
+          >
+            {registration.participantName}
+          </Link>
         ) : (
-          'Sin identificador'
+          'Participante no disponible'
         );
       },
     },
@@ -702,7 +854,7 @@ function registrationColumns({
           (registration.status === 'PENDING' ||
             registration.status === 'APPROVED') ? (
             <Button
-              aria-label={`Cancelar inscripción ${registration.id}`}
+              aria-label={`Cancelar inscripción de ${registration.participantName}`}
               disabled={disabled}
               onClick={() => onCancel(registration)}
               size="icon"

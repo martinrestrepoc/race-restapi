@@ -167,7 +167,7 @@ describe('competitor vertical slice', () => {
       fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE'),
     ).toBe(false);
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
-      'El backend decidirá si',
+      'se eliminará si no tiene historial',
     );
 
     await user.click(

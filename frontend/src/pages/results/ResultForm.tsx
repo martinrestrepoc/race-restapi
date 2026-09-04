@@ -128,9 +128,8 @@ export function ResultForm({
               <option value="">Seleccionar inscripción</option>
               {registrations.map((registration) => (
                 <option key={registration.id} value={registration.id}>
-                  Salida {registration.startingPosition} ·{' '}
-                  {registration.competitorId ? 'Competidor' : 'Equipo'} ·{' '}
-                  {registration.competitorId ?? registration.teamId}
+                  {registration.participantName} · Salida{' '}
+                  {registration.startingPosition}
                 </option>
               ))}
             </select>
@@ -222,8 +221,8 @@ export function ResultForm({
           </>
         ) : (
           <p className="rounded-md border border-border bg-background/45 p-3 text-xs leading-5 text-muted-foreground md:col-span-2">
-            Este resultado se enviará sin tiempo bruto ni posición final y con
-            penalización de 0 ms, tal como exige la API.
+            Los resultados que no finalizan se registran sin tiempo bruto ni
+            posición final y sin penalización.
           </p>
         )}
         <div className="md:col-span-2">
