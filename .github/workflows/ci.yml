@@ -1,0 +1,207 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# evita gastar recursos ejecutando CI sobre versiones antiguas de la misma rama.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  # cancela una ejecución anterior del mismo grupo cuando llega una nueva.
+  cancel-in-progress: true
+
+jobs:
+  backend-quality:
+    name: Backend quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check lint
+        run: npm run lint:check
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Run unit tests with coverage
+        run: npm run test:cov -- --runInBand
+
+        # diagnosticar la cobertura, se puede descargar un archivo con un reporte
+      - name: Upload backend coverage
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: backend/coverage
+          if-no-files-found: ignore
+          retention-days: 14
+
+  frontend-quality:
+    name: Frontend quality
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Check lint
+        run: npm run lint
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Run unit and component tests
+        run: npm test
+
+      - name: Build frontend
+        run: npm run build
+
+  backend-integration:
+    name: Backend integration
+    runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      PORT: 3000
+      DATABASE_HOST: 127.0.0.1
+      DATABASE_PORT: 5432
+      DATABASE_NAME: race_db_test
+      DATABASE_USERNAME: race_test
+      DATABASE_PASSWORD: race_test
+      DATABASE_SSL: "false"
+      TEAM_MAX_MEMBERS: 10
+      KEYCLOAK_BASE_URL: http://identity.test
+      KEYCLOAK_REALM: race-management
+      KEYCLOAK_ISSUER: http://identity.test/realms/race-management
+      KEYCLOAK_JWKS_URI: http://127.0.0.1:9999/certs
+      KEYCLOAK_CLIENT_ID: race-backend
+      KEYCLOAK_AUDIENCE: race-backend
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: race_db_test
+          POSTGRES_USER: race_test
+          POSTGRES_PASSWORD: race_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U race_test -d race_db_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run PostgreSQL-backed E2E tests
+        run: npm run test:e2e
+
+      - name: Run authentication security tests
+        run: npm run test:security
+
+  container-validation:
+    name: Container validation
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-postgres-password
+      KEYCLOAK_DB_PASSWORD: ci-keycloak-database-password
+      KEYCLOAK_ADMIN_PASSWORD: ci-keycloak-admin-password
+      KEYCLOAK_DEMO_ADMIN_PASSWORD: ci-demo-admin-password
+      KEYCLOAK_DEMO_ORGANIZER_PASSWORD: ci-demo-organizer-password
+      KEYCLOAK_DEMO_VIEWER_PASSWORD: ci-demo-viewer-password
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate Compose configuration
+        run: docker compose config --quiet
+
+      - name: Build backend image
+        run: docker build --tag race-backend:ci backend
+
+      - name: Build frontend image
+        run: docker build --tag race-frontend:ci frontend
+
+      - name: Build Keycloak image
+        run: docker build --tag race-keycloak:ci infrastructure/keycloak
+
+  # permite configurar la protección de main con un solo check obligatorio,
+  # que es este job, y así evitar que se pueda hacer merge si alguno de los jobs anteriores falla.
+  ci-success:
+    name: CI success
+    if: ${{ always() }}
+    needs:
+      - backend-quality
+      - frontend-quality
+      - backend-integration
+      - container-validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all required jobs succeeded
+        env:
+          BACKEND_QUALITY_RESULT: ${{ needs.backend-quality.result }}
+          FRONTEND_QUALITY_RESULT: ${{ needs.frontend-quality.result }}
+          BACKEND_INTEGRATION_RESULT: ${{ needs.backend-integration.result }}
+          CONTAINER_VALIDATION_RESULT: ${{ needs.container-validation.result }}
+        run: |
+          for result in \
+            "$BACKEND_QUALITY_RESULT" \
+            "$FRONTEND_QUALITY_RESULT" \
+            "$BACKEND_INTEGRATION_RESULT" \
+            "$CONTAINER_VALIDATION_RESULT"
+          do
+            if [ "$result" != "success" ]; then
+              exit 1
+            fi
+          done

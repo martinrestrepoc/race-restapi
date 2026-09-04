@@ -279,9 +279,7 @@ describe('results vertical slice', () => {
     expect(body).not.toHaveProperty('registrationId');
     expect(body).not.toHaveProperty('finalTimeMs');
     expect(
-      await screen.findByText(
-        'La corrección fue guardada correctamente.',
-      ),
+      await screen.findByText('La corrección fue guardada correctamente.'),
     ).toBeInTheDocument();
   });
 });

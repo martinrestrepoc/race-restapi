@@ -69,8 +69,7 @@ export function CompetitorDetailPage() {
       void navigate('/competitors', {
         replace: true,
         state: {
-          message:
-            'El competidor fue eliminado o retirado según su historial.',
+          message: 'El competidor fue eliminado o retirado según su historial.',
           title: 'Operación completada',
         },
       });

@@ -132,10 +132,7 @@ describe('phase 11 pages', () => {
       screen.getByLabelText('Acción'),
       'RESULT_CORRECTED',
     );
-    await user.selectOptions(
-      screen.getByLabelText('Elemento'),
-      'RACE_RESULT',
-    );
+    await user.selectOptions(screen.getByLabelText('Elemento'), 'RACE_RESULT');
     fireEvent.change(screen.getByLabelText('Desde'), {
       target: { value: '2026-08-24T08:00' },
     });

@@ -96,8 +96,7 @@ export function TeamDetailPage() {
       void navigate('/teams', {
         replace: true,
         state: {
-          message:
-            'El equipo fue eliminado o desactivado según su historial.',
+          message: 'El equipo fue eliminado o desactivado según su historial.',
           title: 'Operación completada',
         },
       });

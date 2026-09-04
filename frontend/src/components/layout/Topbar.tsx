@@ -9,11 +9,7 @@ interface TopbarProps {
   roleLabel: string;
 }
 
-export function Topbar({
-  displayName,
-  onLogout,
-  roleLabel,
-}: TopbarProps) {
+export function Topbar({ displayName, onLogout, roleLabel }: TopbarProps) {
   const initials = displayName
     .split(/\s+/)
     .slice(0, 2)

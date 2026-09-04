@@ -156,9 +156,7 @@ describe('RootApplication authentication and routing boundaries', () => {
     expect(
       await screen.findByRole('heading', { name: 'Iniciar sesión' }),
     ).toBeInTheDocument();
-    await user.click(
-      screen.getByRole('button', { name: 'Iniciar sesión' }),
-    );
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
     expect(client.login).toHaveBeenCalledWith({
       redirectUri: 'http://localhost:3000/',
     });

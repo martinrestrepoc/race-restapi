@@ -52,8 +52,7 @@ export function ResultEditPage() {
       void navigate(`/races/${result.raceId}/results`, {
         replace: true,
         state: {
-          message:
-            'La corrección fue guardada correctamente.',
+          message: 'La corrección fue guardada correctamente.',
           title: 'Resultado corregido',
         },
       });

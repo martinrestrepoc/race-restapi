@@ -80,10 +80,7 @@ function JsonSnapshot({
   );
 }
 
-function Datum({ label, value }: {
-  label: string;
-  value: string;
-}) {
+function Datum({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wide text-muted-foreground">
