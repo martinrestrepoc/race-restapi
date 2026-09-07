@@ -7,7 +7,7 @@ test('Keycloak branded authentication remains responsive and recoverable', async
 }) => {
   await page.setViewportSize({ height: 800, width: 1280 });
   await page.goto('/login');
-  await page.getByRole('button', { name: 'Continuar con Keycloak' }).click();
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
 
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
   await expect(

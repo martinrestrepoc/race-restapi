@@ -128,6 +128,9 @@ describe('phase 11 pages', () => {
     renderApplication(createClient());
 
     await screen.findByRole('heading', { name: 'Auditoría' });
+    expect(
+      screen.getByRole('option', { name: 'Carrera estado cambiado' }),
+    ).toHaveValue('RACE_STATUS_CHANGED');
     await user.selectOptions(
       screen.getByLabelText('Acción'),
       'RESULT_CORRECTED',

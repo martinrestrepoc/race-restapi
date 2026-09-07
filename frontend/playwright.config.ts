@@ -7,6 +7,7 @@ const repositoryEnvironment = resolve(import.meta.dirname, '../.env');
 if (existsSync(repositoryEnvironment)) loadEnvFile(repositoryEnvironment);
 
 const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
+const usesExternalServer = process.env.E2E_EXTERNAL_SERVER === 'true';
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -29,17 +30,20 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
   ],
-  webServer: {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 5173',
-    env: {
-      VITE_API_BASE_URL: '/api/v1',
-      VITE_KEYCLOAK_CLIENT_ID: 'race-frontend',
-      VITE_KEYCLOAK_REALM: 'race-management',
-      VITE_KEYCLOAK_URL:
-        process.env.E2E_KEYCLOAK_URL ?? 'http://localhost:8080',
-    },
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    url: baseURL,
-  },
+  webServer: usesExternalServer
+    ? undefined
+    : {
+        command:
+          'npm run build && npm run preview -- --host 127.0.0.1 --port 5173',
+        env: {
+          VITE_API_BASE_URL: '/api/v1',
+          VITE_KEYCLOAK_CLIENT_ID: 'race-frontend',
+          VITE_KEYCLOAK_REALM: 'race-management',
+          VITE_KEYCLOAK_URL:
+            process.env.E2E_KEYCLOAK_URL ?? 'http://localhost:8080',
+        },
+        reuseExistingServer: !process.env.CI,
+        timeout: 120_000,
+        url: baseURL,
+      },
 });
