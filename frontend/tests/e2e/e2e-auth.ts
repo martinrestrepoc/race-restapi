@@ -28,7 +28,7 @@ export async function loginAs(page: Page, role: DemoRole, returnTo = '/') {
   await expect(
     page.getByRole('heading', { name: 'Iniciar sesión' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Continuar con Keycloak' }).click();
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
   await expect(page).toHaveURL(/localhost:8080\/realms\/race-management/);
   await page
     .getByLabel(/Usuario o correo electrónico|Username or email/i)

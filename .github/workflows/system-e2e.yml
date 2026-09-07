@@ -1,0 +1,95 @@
+name: System E2E
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: system-e2e-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  system-e2e:
+    name: Full system with Playwright
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+          github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: "true"
+      E2E_BASE_URL: http://localhost:5173
+      E2E_EXTERNAL_SERVER: "true"
+      E2E_KEYCLOAK_URL: http://localhost:8080
+      FRONTEND_PUBLIC_URL: http://localhost:5173
+      KEYCLOAK_BASE_URL: http://localhost:8080
+    steps:
+      - name: Check out tested revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Generate disposable credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          for name in \
+            POSTGRES_PASSWORD \
+            KEYCLOAK_DB_PASSWORD \
+            KEYCLOAK_ADMIN_PASSWORD \
+            KEYCLOAK_DEMO_ADMIN_PASSWORD \
+            KEYCLOAK_DEMO_ORGANIZER_PASSWORD \
+            KEYCLOAK_DEMO_VIEWER_PASSWORD
+          do
+            value="$(openssl rand -hex 24)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+
+      - name: Start complete application
+        run: docker compose up --detach --build --wait --wait-timeout 240
+
+      - name: Run browser system tests
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Collect Compose logs on failure
+        if: ${{ failure() }}
+        shell: bash
+        run: |
+          mkdir -p frontend/output/playwright
+          docker compose logs --no-color > frontend/output/playwright/compose.log
+
+      - name: Upload Playwright evidence
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-e2e-evidence
+          path: frontend/output/playwright
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Stop complete application
+        if: ${{ always() }}
+        run: docker compose down --volumes --remove-orphans

@@ -64,7 +64,6 @@ test('administrator completes the official racing workflow through the UI', asyn
   await page.getByLabel(/^Descripción/).fill('Carrera integral automatizada.');
   await page.getByRole('button', { name: 'Guardar carrera' }).click();
   await expect(page.getByRole('heading', { name: raceName })).toBeVisible();
-  const raceId = currentResourceId(page);
 
   await transitionRace(page, 'OPEN_FOR_REGISTRATION', 'Inscripciones abiertas');
   await page.getByRole('link', { name: 'Inscripciones' }).click();
@@ -108,17 +107,15 @@ test('administrator completes the official racing workflow through the UI', asyn
   ).toBeVisible();
 
   await page.goto('/audit');
-  await page.getByLabel('Acción').fill('RACE_STATUS_CHANGED');
-  await page.getByLabel('ID de la entidad').fill(raceId);
+  await page.getByLabel('Acción').selectOption('RACE_STATUS_CHANGED');
+  await page.getByLabel('Elemento').selectOption('RACE');
   await page.getByRole('button', { name: 'Aplicar' }).click();
-  const latestAuditRow = page
-    .getByRole('row')
-    .filter({ hasText: raceId })
+  const latestStatusChange = page
+    .getByRole('link', { name: 'Carrera estado cambiado' })
     .first();
-  await expect(latestAuditRow).toBeVisible();
-  await latestAuditRow
-    .getByRole('link', { name: 'RACE_STATUS_CHANGED' })
-    .click();
+  await expect(latestStatusChange).toBeVisible();
+  await latestStatusChange.click();
+  await expect(page.getByText(/IN_PROGRESS/).first()).toBeVisible();
   await expect(page.getByText(/COMPLETED/).first()).toBeVisible();
 
   expect(teamId).toMatch(/^[0-9a-f-]{36}$/i);
@@ -157,10 +154,7 @@ async function registerParticipant(
 ) {
   await page.getByLabel('Tipo de participante').selectOption(kind);
   await page.getByLabel(/Buscar .* activo/).fill(name);
-  await page.getByRole('button', { name: 'Buscar' }).click();
-  await page
-    .getByLabel('Participante', { exact: true })
-    .selectOption({ label: name });
+  await page.getByRole('option', { name, exact: true }).click();
   await page.getByRole('button', { name: 'Inscribir participante' }).click();
   await expect(
     page.getByText('La solicitud de inscripción quedó pendiente.'),
