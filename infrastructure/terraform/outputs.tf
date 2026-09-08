@@ -24,6 +24,20 @@ output "publisher_role_arn" {
   value       = aws_iam_role.publisher.arn
 }
 
+output "deployer_role_arn" {
+  description = "GitHub repository variable AWS_DEPLOY_ROLE_ARN."
+  value       = aws_iam_role.deployer.arn
+}
+
+output "production_parameter_names" {
+  description = "Encrypted SSM parameters that must exist before the first deployment."
+  value = [
+    "/race-restapi/production/POSTGRES_PASSWORD",
+    "/race-restapi/production/KEYCLOAK_DB_PASSWORD",
+    "/race-restapi/production/KEYCLOAK_ADMIN_PASSWORD",
+  ]
+}
+
 output "manual_dns_records" {
   description = "Documentation only: Terraform does not manage Spaceship DNS or TLS."
   value = {

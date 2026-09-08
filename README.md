@@ -200,6 +200,21 @@ Changes to the realm JSON therefore do not overwrite persisted configuration; ap
 them administratively, or reset the local volume only when discarding all local data
 is intentional.
 
+## AWS Production Deployment
+
+The production infrastructure and release automation are defined under
+`infrastructure/terraform` and `infrastructure/deployment`. CI and full-system E2E
+tests gate publication; backend, frontend, and customized Keycloak images are
+published to ECR with immutable commit-SHA tags. A separate deployment workflow
+uses GitHub OIDC and AWS Systems Manager to deploy the exact release to EC2.
+
+Caddy exposes `https://app.sebaslacabra.lat` and
+`https://auth.sebaslacabra.lat`; PostgreSQL, NestJS, frontend Nginx, and Keycloak
+remain private to the Compose network. Runtime passwords are stored as encrypted
+AWS Parameter Store values, never as GitHub secrets or committed dotenv files.
+See [Production deployment](infrastructure/deployment/README.md) for the flow,
+rollback behavior, and operational limitations.
+
 ## Migrations and Seeds
 
 TypeORM migrations are the required schema-evolution mechanism.

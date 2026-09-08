@@ -23,7 +23,7 @@ data "aws_iam_policy_document" "publisher_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = [local.github_publish_subject]
+      values   = [local.github_main_subject]
     }
   }
 }
@@ -138,6 +138,110 @@ resource "aws_iam_role_policy_attachment" "runtime_ecr" {
 resource "aws_iam_role_policy_attachment" "runtime_ssm" {
   role       = aws_iam_role.runtime.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+data "aws_iam_policy_document" "runtime_parameters" {
+  statement {
+    sid = "ReadProductionParameters"
+    actions = [
+      "ssm:GetParameter",
+      "ssm:GetParameters",
+      "ssm:GetParametersByPath",
+    ]
+    resources = ["arn:aws:ssm:us-east-1:850252650610:parameter/race-restapi/production/*"]
+  }
+}
+
+resource "aws_iam_policy" "runtime_parameters" {
+  name        = "RaceRestApiProductionParameterReader"
+  description = "Allows the production EC2 instance to read only its encrypted runtime configuration."
+  policy      = data.aws_iam_policy_document.runtime_parameters.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "runtime_parameters" {
+  role       = aws_iam_role.runtime.name
+  policy_arn = aws_iam_policy.runtime_parameters.arn
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+data "aws_iam_policy_document" "deployer_trust" {
+  statement {
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.github.arn]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "token.actions.githubusercontent.com:sub"
+      values   = [local.github_production_environment_subject]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "deployer" {
+  statement {
+    sid       = "VerifyReleaseImages"
+    actions   = ["ecr:BatchGetImage"]
+    resources = local.repository_arns
+  }
+  statement {
+    sid     = "RunProductionDeployment"
+    actions = ["ssm:SendCommand"]
+    resources = [
+      aws_instance.runtime.arn,
+      "arn:aws:ssm:us-east-1::document/AWS-RunShellScript",
+    ]
+  }
+  statement {
+    sid = "ReadDeploymentStatus"
+    actions = [
+      "ssm:GetCommandInvocation",
+      "ssm:ListCommandInvocations",
+    ]
+    resources = ["*"]
+  }
+}
+
+resource "aws_iam_policy" "deployer" {
+  name        = "RaceRestApiProductionDeployer"
+  description = "Allows the race-restapi main branch to deploy immutable images through SSM."
+  policy      = data.aws_iam_policy_document.deployer.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_iam_role" "deployer" {
+  name               = "GitHubActionsRaceRestApiDeployer"
+  description        = "Allows the race-restapi main branch to deploy the production EC2 instance."
+  assume_role_policy = data.aws_iam_policy_document.deployer_trust.json
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "deployer" {
+  role       = aws_iam_role.deployer.name
+  policy_arn = aws_iam_policy.deployer.arn
 
   lifecycle {
     prevent_destroy = true

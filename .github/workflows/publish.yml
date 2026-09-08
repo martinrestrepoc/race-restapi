@@ -39,6 +39,7 @@ jobs:
       AWS_PUBLISH_ROLE_ARN: ${{ vars.AWS_PUBLISH_ROLE_ARN }}
       BACKEND_REPOSITORY: race-restapi-backend
       FRONTEND_REPOSITORY: race-restapi-frontend
+      KEYCLOAK_REPOSITORY: race-restapi-keycloak
       PRODUCTION_KEYCLOAK_URL: ${{ inputs.keycloak_url || vars.PRODUCTION_KEYCLOAK_URL }}
 
     steps:
@@ -89,10 +90,10 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # Al tener tags inmutables: 
+      # Al tener tags inmutables:
       # Si la imagen existe, no intenta sobrescribirla.
       # Si falta, construye solamente la que falta.
-      # Si ambas existen, continúa sin reconstruirlas.
+      # Si las tres existen, continúa sin reconstruirlas.
       - name: Check whether images already exist
         id: existing
         shell: bash
@@ -111,13 +112,22 @@ jobs:
             --image-ids imageTag="$IMAGE_TAG" \
             --query 'length(images)' \
             --output text)"
+          keycloak_count="$(aws ecr batch-get-image \
+            --repository-name "$KEYCLOAK_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            --query 'length(images)' \
+            --output text)"
 
           echo "backend=$([[ "$backend_count" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
           echo "frontend=$([[ "$frontend_count" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "keycloak=$([[ "$keycloak_count" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
       # Solo se ejecuta si falta por lo menos una imagen.
       - name: Set up Docker Buildx
-        if: steps.existing.outputs.backend != 'true' || steps.existing.outputs.frontend != 'true'
+        if: >-
+          steps.existing.outputs.backend != 'true' ||
+          steps.existing.outputs.frontend != 'true' ||
+          steps.existing.outputs.keycloak != 'true'
         uses: docker/setup-buildx-action@v3
 
       - name: Build and publish backend
@@ -157,15 +167,41 @@ jobs:
           cache-from: type=gha,scope=publish-frontend
           cache-to: type=gha,mode=max,scope=publish-frontend,ignore-error=true
 
+      - name: Build and publish Keycloak
+        if: steps.existing.outputs.keycloak != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./infrastructure/keycloak
+          file: ./infrastructure/keycloak/Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.KEYCLOAK_REPOSITORY }}:${{ steps.source.outputs.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          cache-from: type=gha,scope=publish-keycloak
+          cache-to: type=gha,mode=max,scope=publish-keycloak,ignore-error=true
+
       # resumen de la ejecución: las direcciones exactas para desplegar.
       - name: Record published images
         env:
           IMAGE_TAG: ${{ steps.source.outputs.sha }}
           REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
+          mkdir -p "$RUNNER_TEMP/production-release"
+          printf '%s\n' "$IMAGE_TAG" > "$RUNNER_TEMP/production-release/image-tag.txt"
+
           {
             echo "### Amazon ECR images"
             echo
             echo "- \`$REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG\`"
             echo "- \`$REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG\`"
+            echo "- \`$REGISTRY/$KEYCLOAK_REPOSITORY:$IMAGE_TAG\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload release metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-release-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/production-release/image-tag.txt
+          if-no-files-found: error
+          retention-days: 14

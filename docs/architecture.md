@@ -329,17 +329,24 @@ The frontend build validates `VITE_API_BASE_URL`, `VITE_KEYCLOAK_URL`,
 documents Compose ports, PostgreSQL and Keycloak bootstrap settings, and browser
 URLs. The public frontend client has no secret. Local `.env` files remain ignored.
 
-## AWS Infrastructure Proposal
+## AWS Production Infrastructure
 
-The reviewable production infrastructure is defined in
+The applied production infrastructure is defined in
 [`infrastructure/terraform`](../infrastructure/terraform/README.md) for AWS account `850252650610`
-in `us-east-1`. It adopts the existing ECR and GitHub OIDC/IAM resources and
-defines a dedicated public subnet, an AL2023 x86_64 EC2 instance, and an Elastic
-IP. Public ingress is limited to HTTP/HTTPS, with administration through SSM.
-The Terraform configuration has not been applied or imported. Application
-deployment, TLS and manual Spaceship DNS for `app.sebaslacabra.lat` and
-`auth.sebaslacabra.lat` remain a subsequent phase; the Terraform README records
-the import procedure and pending operational decisions.
+in `us-east-1`. It manages three immutable ECR repositories, GitHub OIDC roles
+with separate publish/deploy permissions, a dedicated public subnet, an AL2023
+x86_64 EC2 instance, its runtime role, and an Elastic IP. Public ingress is
+limited to HTTP/HTTPS and administration/deployment uses Systems Manager.
+
+The production Compose topology is defined in
+[`infrastructure/deployment`](../infrastructure/deployment/README.md). Caddy is
+the only publicly bound container and obtains TLS for `app.sebaslacabra.lat` and
+`auth.sebaslacabra.lat`; application services remain on a private Docker network.
+GitHub publishes backend, frontend, and customized Keycloak images under the
+tested commit SHA, then deploys that exact release through SSM. Runtime passwords
+are encrypted `SecureString` parameters read only by the EC2 role. PostgreSQL,
+Keycloak state, and Caddy certificates persist on the single EC2 volume, which is
+a documented availability and recovery limitation.
 
 ## Related Documentation
 
