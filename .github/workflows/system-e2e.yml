@@ -6,6 +6,8 @@ on:
     types: [completed]
     branches: [main]
   workflow_dispatch:
+  # No se ejecuta directamente en cada Pull Request. 
+  # Está pensado como una comprobación completa posterior al merge.
 
 permissions:
   contents: read
@@ -22,6 +24,7 @@ jobs:
           github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Variables de entorno de pruebas.
     env:
       CI: "true"
       E2E_BASE_URL: http://localhost:5173
@@ -30,10 +33,12 @@ jobs:
       FRONTEND_PUBLIC_URL: http://localhost:5173
       KEYCLOAK_BASE_URL: http://localhost:8080
     steps:
+      # Descarga el código exacto que produjo la ejecución anterior de CI
       - name: Check out tested revision
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # Cuando se ejecuta manualmente, utiliza el commit seleccionado en GitHub.
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
@@ -46,6 +51,7 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # Playwright utilizará este navegador para interactuar con la aplicación como lo haría una persona.
       - name: Install Chromium
         working-directory: frontend
         run: npx playwright install --with-deps chromium
