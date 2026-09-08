@@ -1,0 +1,188 @@
+name: race-restapi-production
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: race_db
+      POSTGRES_USER: race_app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U race_app -d race_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  keycloak-db-init:
+    image: postgres:16-alpine
+    restart: "no"
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: postgres
+      PGUSER: race_app
+      PGPASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      APPLICATION_DB_NAME: race_db
+      KEYCLOAK_DB_NAME: keycloak_db
+      KEYCLOAK_DB_USERNAME: keycloak_app
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}
+    volumes:
+      - ./provision-keycloak-database.sh:/scripts/provision-keycloak-database.sh:ro
+    command: ["sh", "/scripts/provision-keycloak-database.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  keycloak:
+    image: ${ECR_REGISTRY:?ECR_REGISTRY is required}/race-restapi-keycloak:${IMAGE_TAG:?IMAGE_TAG is required}
+    restart: unless-stopped
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak_db
+      KC_DB_USERNAME: keycloak_app
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:?KEYCLOAK_DB_PASSWORD is required}
+      KC_CACHE: local
+      KC_HOSTNAME: https://auth.sebaslacabra.lat
+      KC_HOSTNAME_STRICT: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      KC_METRICS_ENABLED: "true"
+      KC_BOOTSTRAP_ADMIN_USERNAME: keycloak-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:?KEYCLOAK_ADMIN_PASSWORD is required}
+      FRONTEND_PUBLIC_URL: https://app.sebaslacabra.lat
+    command: ["start", "--optimized", "--import-realm"]
+    depends_on:
+      keycloak-db-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "{ printf 'HEAD /health/ready HTTP/1.0\r\n\r\n' >&0; grep 'HTTP/1.0 200'; } 0<>/dev/tcp/localhost/9000",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    mem_limit: 1g
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  backend:
+    image: ${ECR_REGISTRY:?ECR_REGISTRY is required}/race-restapi-backend:${IMAGE_TAG:?IMAGE_TAG is required}
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: race_db
+      DATABASE_USERNAME: race_app
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      DATABASE_SSL: "false"
+      TEAM_MAX_MEMBERS: 10
+      KEYCLOAK_BASE_URL: https://auth.sebaslacabra.lat
+      KEYCLOAK_REALM: race-management
+      KEYCLOAK_ISSUER: https://auth.sebaslacabra.lat/realms/race-management
+      KEYCLOAK_JWKS_URI: http://keycloak:8080/realms/race-management/protocol/openid-connect/certs
+      KEYCLOAK_CLIENT_ID: race-backend
+      KEYCLOAK_AUDIENCE: race-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/v1').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  frontend:
+    image: ${ECR_REGISTRY:?ECR_REGISTRY is required}/race-restapi-frontend:${IMAGE_TAG:?IMAGE_TAG is required}
+    restart: unless-stopped
+    init: true
+    depends_on:
+      backend:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "-q",
+          "-O",
+          "/dev/null",
+          "http://127.0.0.1:8080/healthz",
+        ]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - private
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
+
+networks:
+  private:
+    driver: bridge

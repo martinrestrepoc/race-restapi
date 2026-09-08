@@ -1,0 +1,194 @@
+name: Deploy
+
+on:
+  workflow_run:
+    workflows: [Publish]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Full Git commit SHA already published in all three ECR repositories
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy exact images to production EC2
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success')
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      PRODUCTION_INSTANCE_ID: ${{ vars.PRODUCTION_INSTANCE_ID }}
+      BACKEND_REPOSITORY: race-restapi-backend
+      FRONTEND_REPOSITORY: race-restapi-frontend
+      KEYCLOAK_REPOSITORY: race-restapi-keycloak
+
+    steps:
+      - name: Download published release metadata
+        if: github.event_name == 'workflow_run'
+        uses: actions/download-artifact@v4
+        with:
+          name: production-release-${{ github.event.workflow_run.run_attempt }}
+          path: ${{ runner.temp }}/production-release
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Resolve and validate release
+        id: release
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_IMAGE_TAG: ${{ inputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            image_tag="$REQUESTED_IMAGE_TAG"
+          else
+            image_tag="$(tr -d '\r\n' < "$RUNNER_TEMP/production-release/image-tag.txt")"
+          fi
+
+          if [[ ! "$image_tag" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "The image tag must be a full Git commit SHA." >&2
+            exit 1
+          fi
+
+          if [[ -z "$AWS_REGION" || -z "$AWS_DEPLOY_ROLE_ARN" || -z "$PRODUCTION_INSTANCE_ID" ]]; then
+            echo "AWS_REGION, AWS_DEPLOY_ROLE_ARN and PRODUCTION_INSTANCE_ID are required." >&2
+            exit 1
+          fi
+
+          echo "image_tag=$image_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check out release
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.release.outputs.image_tag }}
+
+      - name: Configure temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          role-session-name: GitHubDeploy-${{ github.run_id }}
+
+      - name: Verify all release images exist
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          for repository in \
+            "$BACKEND_REPOSITORY" \
+            "$FRONTEND_REPOSITORY" \
+            "$KEYCLOAK_REPOSITORY"
+          do
+            image_count="$(aws ecr batch-get-image \
+              --repository-name "$repository" \
+              --image-ids imageTag="$IMAGE_TAG" \
+              --query 'length(images)' \
+              --output text)"
+
+            if [[ "$image_count" != "1" ]]; then
+              echo "Missing image $repository:$IMAGE_TAG." >&2
+              exit 1
+            fi
+          done
+
+      - name: Deploy through AWS Systems Manager
+        id: ssm
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+        run: |
+          set -euo pipefail
+
+          script_path="infrastructure/deployment/deploy-release.sh"
+          script_checksum="$(sha256sum "$script_path" | cut -d ' ' -f 1)"
+          script_url="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$IMAGE_TAG/$script_path"
+
+          jq -n \
+            --arg instance_id "$PRODUCTION_INSTANCE_ID" \
+            --arg script_url "$script_url" \
+            --arg script_checksum "$script_checksum" \
+            --arg image_tag "$IMAGE_TAG" \
+            '{
+              DocumentName: "AWS-RunShellScript",
+              InstanceIds: [$instance_id],
+              Comment: ("Deploy race-restapi " + $image_tag),
+              Parameters: {
+                commands: [
+                  "set -euo pipefail",
+                  ("curl --fail --silent --show-error --location " + ($script_url | @sh) + " --output /tmp/race-restapi-deploy.sh"),
+                  ("echo " + (($script_checksum + "  /tmp/race-restapi-deploy.sh") | @sh) + " | sha256sum --check --status"),
+                  ("bash /tmp/race-restapi-deploy.sh " + ($image_tag | @sh))
+                ]
+              },
+              TimeoutSeconds: 900
+            }' >"$RUNNER_TEMP/send-command.json"
+
+          command_id="$(aws ssm send-command \
+            --cli-input-json "file://$RUNNER_TEMP/send-command.json" \
+            --query 'Command.CommandId' \
+            --output text)"
+          echo "command_id=$command_id" >> "$GITHUB_OUTPUT"
+
+          for attempt in {1..180}; do
+            status="$(aws ssm get-command-invocation \
+              --command-id "$command_id" \
+              --instance-id "$PRODUCTION_INSTANCE_ID" \
+              --query 'Status' \
+              --output text 2>/dev/null || true)"
+
+            case "$status" in
+              Success)
+                exit 0
+                ;;
+              Failed|Cancelled|TimedOut|Cancelling)
+                aws ssm get-command-invocation \
+                  --command-id "$command_id" \
+                  --instance-id "$PRODUCTION_INSTANCE_ID" \
+                  --query '{Status:Status,Output:StandardOutputContent,Error:StandardErrorContent}'
+                exit 1
+                ;;
+            esac
+
+            sleep 5
+          done
+
+          echo "Deployment did not finish within 15 minutes." >&2
+          exit 1
+
+      - name: Record deployed release
+        env:
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
+          COMMAND_ID: ${{ steps.ssm.outputs.command_id }}
+        run: |
+          {
+            echo "### Production deployment"
+            echo
+            echo "- Commit: \`$IMAGE_TAG\`"
+            echo "- Instance: \`$PRODUCTION_INSTANCE_ID\`"
+            echo "- SSM command: \`$COMMAND_ID\`"
+            echo "- Application: https://app.sebaslacabra.lat"
+            echo "- Identity: https://auth.sebaslacabra.lat"
+          } >> "$GITHUB_STEP_SUMMARY"

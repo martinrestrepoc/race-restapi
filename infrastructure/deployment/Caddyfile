@@ -1,0 +1,13 @@
+{
+	admin off
+}
+
+app.sebaslacabra.lat {
+	encode zstd gzip
+	reverse_proxy frontend:8080
+}
+
+auth.sebaslacabra.lat {
+	encode zstd gzip
+	reverse_proxy keycloak:8080
+}

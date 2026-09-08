@@ -1,8 +1,9 @@
 # AWS production infrastructure
 
 Configuración revisable para `850252650610`, exclusivamente en `us-east-1`.
-No se ha desplegado infraestructura ni importado estado. Los recursos manuales
-se declaran como recursos administrados y `imports.tf` contiene su adopción.
+La infraestructura está aplicada y su estado remoto se almacena en S3. Los
+recursos creados inicialmente en consola fueron adoptados mediante `imports.tf`;
+los bloques se conservan para documentar esa procedencia.
 
 ## Estructura y alcance
 
@@ -12,12 +13,12 @@ se declaran como recursos administrados y `imports.tf` contiene su adopción.
 | `backend.tf` | Estado remoto cifrado en S3 con bloqueo nativo |
 | `bootstrap/` | Módulo separado que crea y protege el bucket de estado |
 | `variables.tf`, `locals.tf` | AMI, CIDR y tags de producción |
-| `ecr.tf` | Dos repositorios existentes, tags inmutables y sin borrado forzado |
-| `iam.tf` | OIDC, dos policies, dos roles, tres attachments y un instance profile |
+| `ecr.tf` | Tres repositorios de imágenes, tags inmutables y sin borrado forzado |
+| `iam.tf` | OIDC y roles separados para publicar, desplegar y ejecutar la aplicación |
 | `network.tf` | VPC dedicada, subnet pública, Internet Gateway, rutas y security group |
 | `compute.tf` | Consulta del key pair, AMI oficial, EC2 y Elastic IP |
 | `imports.tf` | Once importaciones declarativas de recursos existentes |
-| `outputs.tf` | ID de instancia, IP, URIs ECR, AMI, rol publisher y registros DNS manuales |
+| `outputs.tf` | ID de instancia, IP, URIs ECR, AMI, roles y registros DNS manuales |
 
 Se crea una VPC dedicada `10.42.0.0/16` y su primera subnet `/24`, sin asumir que
 existe una VPC por defecto ni alterar redes existentes. La AZ se selecciona entre
@@ -28,8 +29,9 @@ No se crean NAT Gateway, balanceador, RDS ni recursos de DNS.
 La EC2 usa AL2023 **estándar**, de Amazon, x86_64, `c7i-flex.large`, disco raíz
 gp3 de 30 GiB cifrado con la clave EBS predeterminada, IMDSv2 obligatorio y hop
 limit 2. El volumen se conserva si posteriormente se termina la instancia.
-El arranque únicamente habilita SSM Agent, incluido en la AMI estándar.
-Docker, Compose y la aplicación no se instalan con este cambio.
+El arranque de Terraform habilita SSM Agent, incluido en la AMI estándar.
+Docker y Compose se preparan aparte mediante Systems Manager; la aplicación se
+administra mediante el workflow de despliegue.
 
 El único SG asociado permite entrada IPv4 TCP 80 y 443. No hay IPv6 ni entrada
 SSH, 3000, 5432, 5433, 8080 o 5173. La salida IPv4 es abierta para SSM, ECR,
@@ -52,7 +54,7 @@ Desde la raíz del repositorio, con AWS CLI configurado:
 ```bash
 aws sts get-caller-identity --query Account --output text
 aws ec2 describe-key-pairs --region us-east-1 --key-names race-restapi-production --query 'KeyPairs[].{Name:KeyName,Id:KeyPairId,Fingerprint:KeyFingerprint}'
-aws ecr describe-repositories --region us-east-1 --repository-names race-restapi-backend race-restapi-frontend
+aws ecr describe-repositories --region us-east-1 --repository-names race-restapi-backend race-restapi-frontend race-restapi-keycloak
 aws iam get-open-id-connect-provider --open-id-connect-provider-arn arn:aws:iam::850252650610:oidc-provider/token.actions.githubusercontent.com
 aws iam get-role --role-name GitHubActionsRaceRestApiPublisher
 aws iam get-role --role-name RaceRestApiRuntimeRole
@@ -78,7 +80,7 @@ no crea ni importa claves, y no pide siquiera su contenido público. Nunca se
 lee, genera, copia o carga el PEM privado. La clave no habilita el puerto 22;
 la administración se realiza mediante Session Manager con permisos del operador.
 
-## Importación sin recreación
+## Importación realizada sin recreación
 
 Los bloques activos de `imports.tf` son estas once operaciones:
 
@@ -105,41 +107,20 @@ El instance profile es un recurso distinto del rol. Su existencia con el nombre
 de lanzamiento de EC2 y por eso se incluye en las importaciones. Antes del plan,
 el inventario debe confirmar además que contiene el rol correcto.
 
-Procedimiento propuesto (no ejecutado contra AWS):
+La adopción inicial ya fue aplicada. Para cambios posteriores, usar el flujo normal
+de revisión y detenerse ante cualquier destrucción o reemplazo inesperado:
 
-1. Repetir el inventario anterior antes de adoptar para detectar cambios desde la
-   revisión del 7 de septiembre de 2026. En esa revisión se confirmaron paths `/`,
-   sesiones de 3600 segundos, ausencia de boundaries y policies inline, los tres
-   attachments esperados y el instance profile correcto.
-2. Comparar el plan con el inventario. Las policies administradas coinciden en
-   permisos con AWS. El trust publisher existente usa `StringLike` con el subject
-   de `main` duplicado; Terraform propone normalizarlo a un solo `StringEquals`.
-   No aceptar otros cambios IAM inadvertidos.
-3. Copiar el ejemplo y preparar únicamente un plan de revisión:
-
-   ```bash
-   cp infrastructure/terraform/terraform.tfvars.example infrastructure/terraform/terraform.tfvars
-   terraform -chdir=infrastructure/terraform init -input=false
-   terraform -chdir=infrastructure/terraform fmt -check -recursive
-   terraform -chdir=infrastructure/terraform validate
-   terraform -chdir=infrastructure/terraform plan -input=false -out=review.tfplan
-   terraform -chdir=infrastructure/terraform show -no-color review.tfplan
-   ```
-
-4. Fijar `ami_id` al ID oficial resuelto en el plan y volver a planificar. No usar
-   un ID inventado. Esto evita que nuevas publicaciones de AL2023 propongan
-   sustituir la instancia. `prevent_destroy` bloquearía esa sustitución.
-5. Esperar once imports, nueve recursos nuevos y **cero
-   destrucciones/reemplazos**. El plan puede mostrar updates de
-   tags o de IAM; revisarlos uno a uno. No se promete un plan sin diferencias
-   sobre objetos que no se han inventariado. Detenerse ante cualquier replacement.
-6. Entregar el plan y pedir autorización para la siguiente fase. **No ejecutar
-   `apply`, `terraform import`, `destroy` ni comandos de borrado en esta fase.**
+```bash
+terraform -chdir=infrastructure/terraform init -input=false
+terraform -chdir=infrastructure/terraform fmt -check -recursive
+terraform -chdir=infrastructure/terraform validate
+AWS_PROFILE=race-restapi-admin terraform -chdir=infrastructure/terraform plan -input=false -out=review.tfplan
+terraform -chdir=infrastructure/terraform show -no-color review.tfplan
+```
 
 `init`, `fmt` y `validate` no importan. Un plan con bloques `import` solo muestra
-la adopción propuesta, no la persiste en el estado. Un futuro `apply` de ese plan
-importaría **y también crearía/actualizaría** lo propuesto; no es una operación de
-solo importación. Los bloques se pueden conservar después de adoptar.
+una adopción que falte en el estado; `apply` importaría y también aplicaría los
+demás cambios del plan. Los bloques se pueden conservar después de adoptar.
 
 ## IAM y compatibilidad con publicación
 
@@ -147,15 +128,17 @@ El trust del publisher exige audience `sts.amazonaws.com` y el subject exacto
 `repo:martinrestrepoc@195827900/race-restapi@1310204506:ref:refs/heads/main`,
 incluyendo los IDs inmutables que GitHub usa en el prefijo del repositorio. Esto
 es coherente con el remoto y el workflow actual sin GitHub Environment. Cambiar
-de repositorio, rama o usar
-un Environment requiere revisar el subject. No se permiten forks/PRs ni `repo:*`.
+de repositorio o rama requiere revisar el subject. El deployer usa el subject
+separado del Environment `production`; no se permiten forks/PRs ni `repo:*`.
 
-El publisher puede autenticar ECR y leer/publicar únicamente en los dos
+El publisher puede autenticar ECR y leer/publicar únicamente en los tres
 repositorios. `BatchGetImage` cubre la comprobación de tags ya publicados.
-El runtime solo puede autenticar/descargar esas imágenes y usar la policy SSM
-existente. `ecr:GetAuthorizationToken` requiere `Resource="*"`; las operaciones
-de repositorio se restringen a dos ARN. No se añaden permisos de EC2, IAM o
-despliegue al publisher ni de push al runtime.
+El deployer comprueba esas imágenes y envía únicamente `AWS-RunShellScript` a la
+EC2 de producción. El runtime solo puede autenticar/descargar esas imágenes,
+usar SSM y leer parámetros bajo `/race-restapi/production/*`.
+`ecr:GetAuthorizationToken` requiere `Resource="*"`; las operaciones de
+repositorio se restringen a tres ARN. No se añaden permisos de IAM ni de push al
+deployer o al runtime.
 
 Los attachments no son exclusivos: no se eliminan asociaciones desconocidas.
 Por ello el inventario debe confirmar que no hay permisos adicionales que
@@ -167,6 +150,8 @@ Variables GitHub esperadas, sin modificar workflows:
 ```text
 AWS_REGION=us-east-1
 AWS_PUBLISH_ROLE_ARN=arn:aws:iam::850252650610:role/GitHubActionsRaceRestApiPublisher
+AWS_DEPLOY_ROLE_ARN=arn:aws:iam::850252650610:role/GitHubActionsRaceRestApiDeployer
+PRODUCTION_INSTANCE_ID=i-08806bbce0d653238
 PRODUCTION_KEYCLOAK_URL=https://auth.sebaslacabra.lat
 ```
 
@@ -176,10 +161,7 @@ PRODUCTION_KEYCLOAK_URL=https://auth.sebaslacabra.lat
   EC2 y EIP mientras sus bloques permanezcan en la configuración. No es una
   política AWS ni protege al borrar el bloque completo. La EC2 además tiene
   termination protection, que tampoco sustituye backups.
-- Los dos repositorios ECR existentes usan AES-256 y tags inmutables, pero el
-  inventario encontró `scanOnPush=false`. Terraform conserva el cifrado y propone
-  activar el escaneo al publicar sin reemplazar los repositorios. Los tags comunes
-  se agregarán a los recursos importados; revisar esas actualizaciones.
+- Los tres repositorios ECR usan AES-256, tags inmutables y escaneo al publicar.
 - El proveedor OIDC es global para la cuenta y podría ser compartido por otros
   repositorios. Verificar sus audiences y usos antes de reconciliarlo; conservar
   cualquier audience adicional legítima. No cambiar su URL ni eliminarlo.
@@ -203,50 +185,33 @@ PRODUCTION_KEYCLOAK_URL=https://auth.sebaslacabra.lat
   si se conecta esta VPC a otras redes. SSM requiere EIP/ruta y conectividad
   saliente; el agente puede tardar en registrarse tras asociar la IP.
 
-## DNS y aplicación: siguiente fase
+## DNS y aplicación
 
-Después de un despliegue autorizado, crear manualmente en Spaceship registros
-`A` para `app.sebaslacabra.lat` y `auth.sebaslacabra.lat` con `elastic_ip`.
-No se crean registros ni se modifica Spaceship en Terraform. No publicar AAAA
-porque esta configuración no tiene IPv6.
+Los registros manuales de Spaceship apuntan `app.sebaslacabra.lat` y
+`auth.sebaslacabra.lat` a la EIP. Terraform no administra ese proveedor DNS.
+No publicar AAAA porque esta configuración no tiene IPv6.
 
-Abrir 443 no instala un certificado ni un servidor HTTPS. **Decision pending**:
-proxy inverso/TLS, certificados y renovación, instalación Docker/Compose,
-despliegue por tag inmutable/digest y gestión de secretos en el host.
-Configurar Keycloak para `https://auth.sebaslacabra.lat`, su proxy, issuer,
-redirects y web origins de `https://app.sebaslacabra.lat`.
+El despliegue está definido en `infrastructure/deployment`: solo Caddy publica
+80/443, obtiene TLS automáticamente y enruta hacia la red privada de Compose.
+Las imágenes usan tags inmutables por commit y las contraseñas se leen desde
+Parameter Store. Ver su README para el flujo, rollback y límites operativos.
 
-El Compose actual compila localmente y publica PostgreSQL, backend y frontend
-en puertos del host. No usarlo sin adaptar como despliegue público: en la futura
-configuración de producción, esos servicios deben usar redes internas o loopback,
-y únicamente el proxy debe publicar 80/443. También se debe preparar la imagen
-personalizada de Keycloak y un realm de producción sin usuarios demo.
+## Estado aplicado y validación (2026-09-08)
 
-## Validación de esta entrega (2026-09-07)
-
-- Terraform CLI `1.14.8`, plataforma `darwin_arm64`.
-- `init -backend=false -input=false`: correcto; proveedor oficial firmado
-  `hashicorp/aws 6.63.0`, fijado en `.terraform.lock.hcl`.
-- `fmt -check -recursive`: correcto.
-- `validate -no-color`: `Success! The configuration is valid.`
-- `git diff --check` de los archivos existentes modificados por esta entrega:
-  correcto. El chequeo global detecta un espacio final previo del usuario en
-  `.github/workflows/system-e2e.yml:9`; se conserva.
-- Exclusiones de `.terraform/`, estado/backups, planes, tfvars y PEM comprobadas;
-  el ejemplo y lockfile aparecen como archivos versionables.
-- Checksums SHA-256 de los tres workflows iguales antes y después del trabajo.
-- AWS CLI `2.36.40` quedó instalado y se realizó inventario de solo lectura con
-  una sesión temporal. Se confirmaron cuenta, ECR, OIDC, roles, policies,
-  attachments, instance profile y key pair; la sesión root se cerró al terminar.
-- El plan bootstrap propone seis creaciones S3, cero cambios y cero destrucciones.
-  No se ejecutaron apply, imports ni comandos de eliminación. El plan de producción
-  se generará después de crear el bucket y autenticar con una identidad humana
-  distinta de root.
-
-La descarga del proveedor y su ejecución para validar requirieron salir del
-sandbox local (restricciones de red/inicio del plugin); ambas finalizaron
-correctamente. No se ejecutaron pruebas de aplicación: el cambio es de
-infraestructura y documentación, sin modificar código de negocio.
+- Terraform CLI `1.14.8` y proveedor `hashicorp/aws 6.63.0` fijado en el lockfile.
+- Estado remoto cifrado y bloqueado en S3; cuenta y región restringidas por el
+  provider.
+- EC2, EIP, red, ECR, OIDC, roles y asociaciones aplicados sin destrucciones.
+- El cambio de despliegue creó seis recursos, actualizó dos policies ECR y no
+  reemplazó ningún recurso.
+- El plan posterior al apply informó `No changes`.
+- Los tres parámetros de producción existen como `SecureString`; sus valores no
+  se mostraron. Una orden SSM confirmó que la EC2 puede leer exactamente tres.
+- El environment GitHub `production` acepta solamente ramas protegidas.
+- `terraform fmt -check -recursive`, `terraform validate`, validación del Compose,
+  sintaxis Bash/JSON/YAML, Prettier y `git diff --check`: correctos.
+- La compilación local de la imagen Keycloak requiere Docker Desktop; CI ejecuta
+  esa construcción antes de publicar y desplegar.
 
 ## Referencias oficiales
 
