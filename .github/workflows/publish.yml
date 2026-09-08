@@ -1,0 +1,169 @@
+name: Publish
+
+on:
+  workflow_run:
+    workflows: [System E2E]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    # La ejecución manual permite introducir temporalmente la URL pública de Keycloak
+    inputs:
+      keycloak_url:
+        description: Public production Keycloak URL
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  # permite pedirle a GitHub el comprobante OIDC que AWS verificará
+  id-token: write
+
+concurrency:
+  group: publish-${{ github.event.workflow_run.head_branch || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    name: Publish images to Amazon ECR
+    if: >-
+      ${{
+        (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+        (github.event_name == 'workflow_run' &&
+         github.event.workflow_run.conclusion == 'success' &&
+         vars.PRODUCTION_KEYCLOAK_URL != '')
+      }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_PUBLISH_ROLE_ARN: ${{ vars.AWS_PUBLISH_ROLE_ARN }}
+      BACKEND_REPOSITORY: race-restapi-backend
+      FRONTEND_REPOSITORY: race-restapi-frontend
+      PRODUCTION_KEYCLOAK_URL: ${{ inputs.keycloak_url || vars.PRODUCTION_KEYCLOAK_URL }}
+
+    steps:
+      - name: Validate publish configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "$AWS_REGION" ]]; then
+            echo "Missing repository variable AWS_REGION." >&2
+            exit 1
+          fi
+
+          if [[ -z "$AWS_PUBLISH_ROLE_ARN" ]]; then
+            echo "Missing repository variable AWS_PUBLISH_ROLE_ARN." >&2
+            exit 1
+          fi
+
+          if [[ ! "$PRODUCTION_KEYCLOAK_URL" =~ ^https://[^/]+ ]]; then
+            echo "PRODUCTION_KEYCLOAK_URL must be an absolute HTTPS URL." >&2
+            exit 1
+          fi
+
+      # Determina el SHA exacto del commit que se publicará.
+      - name: Resolve source revision
+        id: source
+        shell: bash
+        env:
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          set -euo pipefail
+          source_sha="${WORKFLOW_RUN_SHA:-$GITHUB_SHA}"
+          echo "sha=$source_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Check out tested revision
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.source.outputs.sha }}
+
+      - name: Configure temporary AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_PUBLISH_ROLE_ARN }}
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Al tener tags inmutables: 
+      # Si la imagen existe, no intenta sobrescribirla.
+      # Si falta, construye solamente la que falta.
+      # Si ambas existen, continúa sin reconstruirlas.
+      - name: Check whether images already exist
+        id: existing
+        shell: bash
+        env:
+          IMAGE_TAG: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+
+          backend_count="$(aws ecr batch-get-image \
+            --repository-name "$BACKEND_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            --query 'length(images)' \
+            --output text)"
+          frontend_count="$(aws ecr batch-get-image \
+            --repository-name "$FRONTEND_REPOSITORY" \
+            --image-ids imageTag="$IMAGE_TAG" \
+            --query 'length(images)' \
+            --output text)"
+
+          echo "backend=$([[ "$backend_count" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          echo "frontend=$([[ "$frontend_count" == "1" ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      # Solo se ejecuta si falta por lo menos una imagen.
+      - name: Set up Docker Buildx
+        if: steps.existing.outputs.backend != 'true' || steps.existing.outputs.frontend != 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and publish backend
+        if: steps.existing.outputs.backend != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.BACKEND_REPOSITORY }}:${{ steps.source.outputs.sha }}
+          # etiquetas OCI que relacionan la imagen con el commit exacto y con el repositorio.
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          # guarda caché de construcción en GitHub Actions para acelerar publicaciones posteriores.
+          cache-from: type=gha,scope=publish-backend
+          cache-to: type=gha,mode=max,scope=publish-backend
+
+      - name: Build and publish frontend
+        if: steps.existing.outputs.frontend != 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/Dockerfile
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.FRONTEND_REPOSITORY }}:${{ steps.source.outputs.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ steps.source.outputs.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+          build-args: |
+            VITE_API_BASE_URL=/api/v1
+            VITE_KEYCLOAK_URL=${{ env.PRODUCTION_KEYCLOAK_URL }}
+            VITE_KEYCLOAK_REALM=race-management
+            VITE_KEYCLOAK_CLIENT_ID=race-frontend
+          cache-from: type=gha,scope=publish-frontend
+          cache-to: type=gha,mode=max,scope=publish-frontend
+
+      # resumen de la ejecución: las direcciones exactas para desplegar.
+      - name: Record published images
+        env:
+          IMAGE_TAG: ${{ steps.source.outputs.sha }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          {
+            echo "### Amazon ECR images"
+            echo
+            echo "- \`$REGISTRY/$BACKEND_REPOSITORY:$IMAGE_TAG\`"
+            echo "- \`$REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG\`"
+          } >> "$GITHUB_STEP_SUMMARY"

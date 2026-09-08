@@ -1,0 +1,16 @@
+# After the first bootstrap apply, copy this file to backend.tf and migrate the
+# bootstrap state into the bucket it just created:
+#
+# cp infrastructure/terraform/bootstrap/backend.tf.after-bootstrap.example \
+#   infrastructure/terraform/bootstrap/backend.tf
+# terraform -chdir=infrastructure/terraform/bootstrap init -migrate-state
+
+terraform {
+  backend "s3" {
+    bucket       = "race-restapi-terraform-state-850252650610-us-east-1"
+    key          = "bootstrap/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+}

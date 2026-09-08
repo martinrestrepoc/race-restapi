@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars (ignored by Git). No credentials or PEM belong here.
+# null resolves the current official AL2023 x86_64 image for the first plan.
+# Replace null with that plan's ami_id before deployment to avoid AMI drift.
+ami_id   = null
+vpc_cidr = "10.42.0.0/16"
