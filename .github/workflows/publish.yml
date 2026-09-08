@@ -134,7 +134,9 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
           # guarda caché de construcción en GitHub Actions para acelerar publicaciones posteriores.
           cache-from: type=gha,scope=publish-backend
-          cache-to: type=gha,mode=max,scope=publish-backend
+          # La caché acelera builds, pero una cuota temporal no debe invalidar
+          # una imagen que ya fue publicada correctamente en ECR.
+          cache-to: type=gha,mode=max,scope=publish-backend,ignore-error=true
 
       - name: Build and publish frontend
         if: steps.existing.outputs.frontend != 'true'
@@ -153,7 +155,7 @@ jobs:
             VITE_KEYCLOAK_REALM=race-management
             VITE_KEYCLOAK_CLIENT_ID=race-frontend
           cache-from: type=gha,scope=publish-frontend
-          cache-to: type=gha,mode=max,scope=publish-frontend
+          cache-to: type=gha,mode=max,scope=publish-frontend,ignore-error=true
 
       # resumen de la ejecución: las direcciones exactas para desplegar.
       - name: Record published images

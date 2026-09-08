@@ -143,9 +143,11 @@ solo importación. Los bloques se pueden conservar después de adoptar.
 
 ## IAM y compatibilidad con publicación
 
-El trust del publisher exige audience `sts.amazonaws.com` y subject exacto
-`repo:martinrestrepoc/race-restapi:ref:refs/heads/main`, coherente con el remoto y
-el workflow actual sin GitHub Environment. Cambiar de repositorio, rama o usar
+El trust del publisher exige audience `sts.amazonaws.com` y el subject exacto
+`repo:martinrestrepoc@195827900/race-restapi@1310204506:ref:refs/heads/main`,
+incluyendo los IDs inmutables que GitHub usa en el prefijo del repositorio. Esto
+es coherente con el remoto y el workflow actual sin GitHub Environment. Cambiar
+de repositorio, rama o usar
 un Environment requiere revisar el subject. No se permiten forks/PRs ni `repo:*`.
 
 El publisher puede autenticar ECR y leer/publicar únicamente en los dos

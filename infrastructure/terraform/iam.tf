@@ -23,7 +23,7 @@ data "aws_iam_policy_document" "publisher_trust" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:martinrestrepoc/race-restapi:ref:refs/heads/main"]
+      values   = [local.github_publish_subject]
     }
   }
 }
