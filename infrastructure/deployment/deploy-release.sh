@@ -150,6 +150,13 @@ docker compose \
   --file "${COMPOSE_FILE}" \
   up --detach --remove-orphans --wait --wait-timeout 360
 
+# The admin API is disabled; restart to load the updated bind-mounted Caddyfile.
+docker compose \
+  --project-name race-restapi-production \
+  --env-file "${ENV_FILE}" \
+  --file "${COMPOSE_FILE}" \
+  restart caddy
+
 curl \
   --fail \
   --silent \

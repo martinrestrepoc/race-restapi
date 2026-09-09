@@ -12,7 +12,12 @@ It uses native S3 state locking; no DynamoDB table is required.
 Do not place AWS access keys in this directory. Authenticate with a temporary AWS
 CLI session and first verify that it belongs to account `850252650610`.
 
-## First creation
+## Initial creation (completed)
+
+The production state bucket was created and the bootstrap state was migrated to
+it during the initial infrastructure rollout. The commands below document that
+one-time procedure for recovery or recreation; do not repeat them against the
+existing bucket as a routine deployment step.
 
 From the repository root:
 
@@ -37,16 +42,20 @@ Answer `yes` only when Terraform asks to copy the existing local state to S3.
 Then verify that a new plan reports no changes before removing the ignored local
 `terraform.tfstate` and its backup.
 
-## Production initialization
+## Production initialization (completed)
 
-Once the bucket exists and bootstrap state migration is verified:
+After the bucket and state migration were verified, the production module was
+initialized, its existing IAM/ECR resources were imported, and the reviewed plan
+was applied. The following is now the normal read-only review flow for subsequent
+changes:
 
 ```bash
-terraform -chdir=infrastructure/terraform init -reconfigure -input=false
+terraform -chdir=infrastructure/terraform init -input=false
+terraform -chdir=infrastructure/terraform fmt -check -recursive
+terraform -chdir=infrastructure/terraform validate
 terraform -chdir=infrastructure/terraform plan -input=false -out=review.tfplan
 terraform -chdir=infrastructure/terraform show -no-color review.tfplan
 ```
 
-The production plan proposes the existing-resource imports and the new runtime
-infrastructure together. Do not apply it until every IAM/ECR difference and all
-resource counts have been reviewed.
+Do not apply a later plan until every difference has been reviewed. Stop if it
+proposes an unexplained deletion, replacement, IAM expansion, or ECR recreation.

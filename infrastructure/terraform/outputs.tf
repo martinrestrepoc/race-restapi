@@ -41,6 +41,7 @@ output "production_parameter_names" {
 output "manual_dns_records" {
   description = "Documentation only: Terraform does not manage Spaceship DNS or TLS."
   value = {
+    "sebaslacabra.lat"     = { type = "A", value = aws_eip.runtime.public_ip }
     "app.sebaslacabra.lat"  = { type = "A", value = aws_eip.runtime.public_ip }
     "auth.sebaslacabra.lat" = { type = "A", value = aws_eip.runtime.public_ip }
   }

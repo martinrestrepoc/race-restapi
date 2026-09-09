@@ -78,7 +78,7 @@ keyboard-scrollable data tables, reduced-motion support, and route-based code
 splitting. The initial production JavaScript chunk remains below Vite's 500 kB
 warning threshold; domain pages load on demand.
 
-The automated acceptance layer contains 96 Vitest unit/component/MSW tests and
+The automated acceptance layer contains 100 Vitest unit/component/MSW tests and
 four sequential Playwright scenarios. The real-browser suite covers the branded
 Keycloak sign-in, invalid credentials and recovery, administrator/organizer/viewer
 permissions, frontend field validation, an authoritative backend conflict, and

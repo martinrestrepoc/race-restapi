@@ -1,5 +1,5 @@
-# Declarative only: init/validate do not import. A future plan previews adoption;
-# applying that plan would import AND create/update resources. Do not apply yet.
+# These blocks document resources adopted during the initial applied rollout.
+# Terraform skips each import when its destination is already present in state.
 import {
   to = aws_ecr_repository.images["race-restapi-backend"]
   id = "race-restapi-backend"

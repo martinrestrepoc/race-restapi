@@ -2,6 +2,10 @@
 	admin off
 }
 
+sebaslacabra.lat {
+	redir https://app.sebaslacabra.lat{uri} permanent
+}
+
 app.sebaslacabra.lat {
 	encode zstd gzip
 	reverse_proxy frontend:8080

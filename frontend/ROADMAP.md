@@ -31,7 +31,7 @@ source of business rules.
 | Phase 10 | Complete | Conditional result capture, official timing, audited correction, lifecycle conflicts, role gates, and tests are verified.                                                      |
 | Phase 11 | Complete | Competitor/team standings, user administration, audit inspection, profile, logout, role gates, and tests are verified.                                                         |
 | Phase 12 | Complete | Failure recovery, accessibility hardening, responsive/code-split UI, and the branded Keycloak theme are verified.                                                              |
-| Phase 13 | Complete | 96 deterministic unit/component/MSW tests and four real-browser Keycloak, role, conflict, workflow, standings, and audit scenarios are verified.                               |
+| Phase 13 | Complete | 100 deterministic unit/component/MSW tests and four real-browser Keycloak, role, conflict, workflow, standings, and audit scenarios are verified.                              |
 | Phase 14 | Complete | Multi-stage unprivileged frontend image, SPA fallback, same-origin API proxy, cache/security headers, healthchecks, Compose startup, restart, and E2E acceptance are verified. |
 | Phase 15 | Complete | Setup, architecture, security, testing, evaluation, theme, limitations, troubleshooting, and a repeatable demonstration workflow are documented and verified.                  |
 
@@ -95,30 +95,35 @@ frontend/
 ├── public/
 ├── src/
 │   ├── api/
-│   │   ├── resources/
+│   │   ├── ApiProvider.tsx
 │   │   ├── api-client.ts
-│   │   ├── api-error.ts
-│   │   ├── pagination.ts
-│   │   └── query-client.ts
+│   │   ├── api-context.ts
+│   │   ├── api-errors.ts
+│   │   ├── domain.types.ts
+│   │   ├── query-string.ts
+│   │   ├── resource-api.ts
+│   │   └── use-api.ts
 │   ├── app/
 │   ├── auth/
+│   │   └── pages/
 │   ├── components/
 │   │   ├── feedback/
 │   │   ├── forms/
 │   │   ├── layout/
 │   │   └── ui/
-│   ├── features/
+│   ├── config/
+│   ├── lib/
+│   ├── pages/
 │   │   ├── audit/
 │   │   ├── competitors/
-│   │   ├── dashboard/
+│   │   ├── profile/
 │   │   ├── races/
 │   │   ├── registrations/
 │   │   ├── results/
 │   │   ├── standings/
 │   │   ├── teams/
 │   │   └── users/
-│   ├── hooks/
-│   ├── routes/
+│   ├── query/
 │   ├── styles/
 │   ├── types/
 │   ├── main.tsx
@@ -637,7 +642,7 @@ owner of credential collection and authentication.
 
 ## Phase 13 - Automated Testing and Main Workflow
 
-**Status: Complete.** Vitest now covers 96 deterministic unit, component, and
+**Status: Complete.** Vitest now covers 100 deterministic unit, component, and
 MSW-backed cases, including shared feedback semantics and the complete documented
 API error range. Playwright runs sequentially against the real local Keycloak and
 NestJS services, loads credentials only from external environment variables, and

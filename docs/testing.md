@@ -29,8 +29,9 @@ disabled-profile denial. Demonstration-seed unit and PostgreSQL E2E coverage ver
 the required type counts, teams/memberships, three race states, official completed
 results, standings output, idempotency, and absence of local identity records.
 
-The current unit suite contains 100 tests. Its production-code coverage is 82.84%
-of statements, 71.39% of branches, 58.75% of functions, and 82.82% of lines.
+The current unit suite contains 100 tests. Its production-code coverage, verified
+on 2026-09-09, is 82.88% of statements, 70.99% of branches, 58.75% of functions,
+and 82.86% of lines.
 Coverage deliberately excludes tests, NestJS module wiring, migrations, the
 TypeORM CLI data source, and application bootstrap files. Global minimums enforced
 by Jest are 75% statements, 65% branches, 45% functions, and 75% lines. The 28 E2E
