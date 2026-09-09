@@ -136,7 +136,8 @@ are intentionally maintained only here.
 - [x] A modular Postman collection covers every implemented API endpoint,
       authorization boundaries, validation, conflicts, and the complete race flow.
 - [x] Git history contains meaningful contributions from every team member.
-- [ ] Branches and pull requests show a reviewable workflow.
+- [x] Branches, pull requests, protected-branch checks, and separate CI, system E2E,
+      publish, and deployment workflows provide a reviewable delivery workflow.
 - [ ] All team members understand the architecture and main application flow.
 
 ## Final Demonstration
@@ -204,6 +205,17 @@ Verified for phase 15 on 2026-08-28:
       controls, role/profile enforcement, and PostgreSQL-backed correction/tie
       coverage exist.
 
-Actual video recording, pull-request evidence, and confirmation that every team
-member can explain the architecture remain submission activities; they are not
-claimed by source-code verification.
+Production delivery verified on 2026-09-08:
+
+- [x] Protected-branch CI and system E2E workflows pass independently.
+- [x] Backend, frontend, and customized Keycloak images publish to Amazon ECR with
+      immutable full-commit tags.
+- [x] Terraform manages the dedicated VPC, EC2 instance, Elastic IP, ECR, IAM/OIDC,
+      Systems Manager access, and encrypted runtime parameters in `us-east-1`.
+- [x] The production release workflow deploys exact images through Systems Manager.
+- [x] Caddy exposes the application and Keycloak through public HTTPS while the
+      application services and databases remain private to the Compose network.
+
+Actual video recording and confirmation that every team member can explain the
+architecture remain submission activities; they are not claimed by source-code
+verification.

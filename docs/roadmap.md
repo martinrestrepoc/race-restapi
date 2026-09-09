@@ -52,7 +52,9 @@ relevant unit, integration, and E2E tests are present.
     covers every REST module with real Keycloak PKCE authentication, role-aware
     routes, responsive/accessibility states, contract-level component tests, and a
     real-browser workflow. The root Compose topology includes the hardened frontend
-    runtime and same-origin API proxy.
+    runtime and same-origin API proxy. The production topology is deployed to AWS
+    EC2 from immutable ECR images, uses Caddy for public TLS, stores secrets in
+    Parameter Store, and is managed through Terraform and GitHub Actions.
 11. **Documentation and demonstration readiness — implemented.** Setup, security,
     architecture, testing, known limitations, evaluation traceability, Keycloak
     theming, troubleshooting, and a timed team demonstration workflow are current.
@@ -60,6 +62,7 @@ relevant unit, integration, and E2E tests are present.
 ## Next Increment
 
 The mandatory product scope is complete. Further increments are optional product
-evolution: production TLS/hosting and high availability, realtime updates, Keycloak
+evolution: high availability, automated backups and tested disaster recovery,
+external monitoring, zero-downtime deployments, realtime updates, Keycloak
 administration integration, or retention/anonymization policies. Each requires an
 explicit requirement and the same contract, migration, security, and test review.

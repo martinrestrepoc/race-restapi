@@ -1,14 +1,22 @@
 # Production deployment
 
 Production runs on one Amazon Linux 2023 EC2 instance and exposes only ports 80
-and 443. Caddy terminates TLS and routes the two public hosts:
+and 443. Caddy terminates TLS and routes the public hosts:
 
+- `https://sebaslacabra.lat` -> permanent (301) redirect to
+  `https://app.sebaslacabra.lat`, preserving the request path and query string;
 - `https://app.sebaslacabra.lat` -> frontend Nginx -> NestJS for `/api/*`;
 - `https://auth.sebaslacabra.lat` -> Keycloak.
 
 PostgreSQL, Keycloak, NestJS and frontend Nginx are reachable only on the private
 Compose network. Caddy obtains and renews public certificates automatically; its
 certificate state and both databases use named Docker volumes on the EC2 disk.
+
+In Spaceship, the root (`@`), `app`, and `auth` A records must point to the EC2
+Elastic IP. After changing the Caddyfile on the host, restart the Caddy container
+to apply it: its admin API is disabled, and Compose does not detect changes to
+bind-mounted file contents automatically.
+The release script performs this restart after starting the services.
 
 ## Host preparation
 
@@ -65,10 +73,19 @@ the previous image tag if a later release fails. It never prints parameter value
 The manual workflow requires an existing 40-character image tag and is the normal
 rollback mechanism.
 
-The first Keycloak start creates only the realm, clients and roles. Sign in to the
-Keycloak administration console with `keycloak-admin`, create application users,
-and assign the corresponding `race-backend` client roles. Realm imports do not
-overwrite an existing realm on later deployments.
+The first Keycloak start creates only the realm, clients and roles. The bootstrap
+identity `keycloak-admin` is a temporary Keycloak administration account, not an
+application user. Use it once to create a permanent administration identity with
+a permanent credential and only the required `realm-management` permissions.
+Verify that the permanent identity can sign in and administer the project realm,
+then remove the temporary bootstrap identity. Do not remove it before the new
+administrator has been verified.
+
+Application users are created separately in the `race-management` realm and
+receive the corresponding `race-backend` client roles. For example, the functional
+user `race-admin` receives `ADMINISTRATOR`, but that role does not grant access to
+the Keycloak administration console. Realm imports do not overwrite an existing
+realm on later deployments.
 
 An authorized operator can retrieve the generated bootstrap password only when it
 is needed; the command prints a secret, so do not paste its output into chat, logs,

@@ -318,10 +318,13 @@ development records and must never target production.
 
 ```text
 .
+├── .github/
+│   └── workflows/           # CI, system E2E, image publishing, and deployment
 ├── .env.example           # Compose configuration template
 ├── AGENTS.md
 ├── README.md
 ├── compose.yml            # Complete local product topology
+├── compose.test.yml       # Isolated PostgreSQL topology for backend tests
 ├── backend/               # NestJS API application
 │   ├── Dockerfile
 │   ├── src/               # Auth, domain, persistence, audit, and standings modules
@@ -330,7 +333,11 @@ development records and must never target production.
 │   └── package-lock.json
 ├── docs/                  # Authoritative project documentation
 ├── frontend/              # React/TypeScript/Vite application and browser tests
-├── keycloak/              # Realm import and versioned custom login theme
+├── infrastructure/
+│   ├── deployment/        # Production Compose, Caddy, bootstrap, and release scripts
+│   ├── keycloak/           # Realm imports and versioned custom login theme
+│   ├── postgres/           # Keycloak database provisioning
+│   └── terraform/          # AWS infrastructure and remote-state bootstrap
 └── postman/               # Importable API verification suite
 ```
 
@@ -424,9 +431,9 @@ Local component URLs:
   retention and profile anonymization policies are not yet product requirements.
 - The dashboard polls while a race is in progress; there is no WebSocket channel or
   notification backend.
-- The local stack uses HTTP and a single-node Keycloak cache. Non-local deployment
-  requires TLS, exact redirect/origin configuration, secret management, and a
-  supported high-availability topology where applicable.
+- The local stack uses HTTP. The current AWS production deployment uses TLS, exact
+  redirect/origin configuration, encrypted Parameter Store secrets, and a
+  single-node Keycloak cache; it is not a high-availability topology.
 - Realm startup import creates an absent realm but does not overwrite a realm
   already persisted in PostgreSQL; later realm changes require an administrative
   migration or an intentional local reset.
@@ -438,7 +445,8 @@ follow the [demonstration and troubleshooting guide](docs/demonstration-guide.md
 ## Future Improvements
 
 After all mandatory requirements are complete, optional improvements may include
-CI, cloud deployment, WebSocket race updates, email notifications, Redis caching,
-rate limiting, Testcontainers, CSV/PDF export, profile images, observability, soft
+high availability, automated backups and disaster recovery, zero-downtime
+deployments, WebSocket race updates, email notifications, Redis caching, rate
+limiting, Testcontainers, CSV/PDF export, profile images, observability, soft
 delete, optimistic locking, and idempotency keys. Bonus work must not displace
 mandatory security, UI, persistence, or business-rule work.
